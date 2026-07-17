@@ -7,6 +7,7 @@ import { WorkPulseLogo }     from "@/components/WorkPulseLogo"
 import { TimelineCard }      from "@/components/dashboard/TimelineCard"
 import { TopicRatingCard }   from "@/components/dashboard/TopicRatingCard"
 import { TopicOverviewCard } from "@/components/dashboard/TopicOverviewCard"
+import { AnomalyExplanationsCard } from "@/components/dashboard/AnomalyExplanationsCard"
 import KPIGrid               from "@/components/dashboard/KPIGrid"
 import { CompanySearchSelect } from "@/components/CompanySearchSelect"
 import SorceModal        from "../components/dashboard/modals/SorceModal"
@@ -16,7 +17,7 @@ import NegativTopicModal from "../components/dashboard/modals/NegativTopicModal"
 import ImportModal, { getImportHistory } from "../components/dashboard/modals/ImportModal"
 
 import {
-  Dashboard as DashboardIcon, Compare, Download, Building, Home, Search, Loader, Sun, Moon,
+  Dashboard as DashboardIcon, Compare, Download, Building, Home, Search, Loader, Sun, Moon, TrendUp,
 } from "../icons"
 import { useTheme } from "../hooks/useTheme"
 import { API_URL } from "../config"
@@ -400,6 +401,17 @@ export default function Dashboard() {
               <Compare />
               Vergleich
             </button>
+            <button
+              className="ds-nav-link"
+              onClick={() => navigate("/finance", {
+                state: effectiveCompanyId && selectedCompanyName
+                  ? { companyId: effectiveCompanyId, companyName: selectedCompanyName }
+                  : {}
+              })}
+            >
+              <TrendUp />
+              Finanzmarkt
+            </button>
           </div>
 
           {/* Daten group */}
@@ -599,6 +611,18 @@ export default function Dashboard() {
                 onLoadingChange={handleTopicRatingLoadingChange}
                 globalTimeRange={globalTimeRange}
               />
+            </div>
+
+            {/* Anomalien & Erklärungen (2. Design-Zyklus) —
+                Finanzmarkt (Kurs/Kennzahlen/News) hat eine eigene Seite: /finance */}
+            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 12 }}>
+              <h2 style={{ margin: 0, font: "600 14px/20px var(--font-sans)", color: "var(--color-fg)" }}>Anomalien & Erklärungen</h2>
+              <span style={{ font: "400 12px/1 var(--font-sans)", color: "var(--color-fg-subtle)" }}>
+                Extreme Veränderungen mit zeitlich und thematisch korrespondierenden Ereignissen
+              </span>
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <AnomalyExplanationsCard companyId={effectiveCompanyId} />
             </div>
 
             {/* Topic overview */}

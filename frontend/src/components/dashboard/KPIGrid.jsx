@@ -69,7 +69,7 @@ const trendTone = (sign) => {
 /* ============================================================================
    Single KPI tile
    ============================================================================ */
-function KPITile({ label, icon, value, valueSize = "lg", delta, footer, tone = "neutral", onClick, disabled }) {
+export function KPITile({ label, icon, value, valueSize = "lg", delta, footer, tone = "neutral", onClick, disabled }) {
   const t = TONES[tone] ?? TONES.neutral;
   return (
     <button

@@ -1,0 +1,18 @@
+{
+  "company_id": 3,
+  "source": "employee",
+  "dimension": "durchschnittsbewertung",
+  "beschreibung": "Manuell annotierte auffällige Zeiträume der Demo-Firma 3 (V-Verlauf). Format-Referenz für eigene Annotationen: period als YYYY-MM, direction 'rise'|'fall', kommentar frei.",
+  "annotated_anomalies": [
+    {
+      "period": "2023-01",
+      "direction": "fall",
+      "kommentar": "Beginn der Krise: Restrukturierungsprogramm und Stellenabbau (Demo-Daten)"
+    },
+    {
+      "period": "2024-01",
+      "direction": "rise",
+      "kommentar": "Beginn der Erholung: Rückkehr in die Gewinnzone, Neueinstellungen (Demo-Daten)"
+    }
+  ]
+}

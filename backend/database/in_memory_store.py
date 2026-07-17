@@ -449,9 +449,9 @@ _D3_CAND_RANGES = {"early": (3.6, 4.2), "mid": (2.2, 3.0), "late": (3.4, 4.1)}
 
 def _generate_data():
     companies = [
-        {"id": 1, "name": "Demo 1"},
-        {"id": 2, "name": "Demo 2"},
-        {"id": 3, "name": "Demo 3"},
+        {"id": 1, "name": "Demo 1", "ticker": "DEMO1.DE", "isin": "DE000DEMO101"},
+        {"id": 2, "name": "Demo 2", "ticker": "DEMO2.DE", "isin": "DE000DEMO202"},
+        {"id": 3, "name": "Demo 3", "ticker": "DEMO3.DE", "isin": "DE000DEMO303"},
     ]
     employees = []
     candidates = []
@@ -542,11 +542,171 @@ def _generate_data():
 
 _COMPANIES, _EMPLOYEES, _CANDIDATES = _generate_data()
 
+# ---------------------------------------------------------------------------
+# Demo-Kontextdaten (2. Design-Zyklus): externe Ereignisse, Kurse, Kennzahlen
+# Abgestimmt auf die Bewertungsverläufe: Demo 1 steigend, Demo 2 sinkend,
+# Demo 3 V-Form (Krise ab Anfang 2023, Erholung ab Anfang 2024).
+# ---------------------------------------------------------------------------
+
+_DEMO_CONTEXT_ITEMS = [
+    # Demo 3: Krise + Erholung
+    {"id": 1, "company_id": 3, "source_type": "adhoc", "provider": "manual",
+     "titel": "Demo 3 AG kündigt umfassendes Restrukturierungsprogramm an",
+     "zusammenfassung": "Der Vorstand beschließt ein Sparprogramm: Stellenabbau von rund 800 Stellen und die Schließung des Standorts Nord sind geplant.",
+     "url": "https://example.com/demo3/adhoc-restrukturierung",
+     "published_at": "2023-01-12T08:00:00+00:00", "raw": None},
+    {"id": 2, "company_id": 3, "source_type": "news", "provider": "manual",
+     "titel": "Stellenabbau bei Demo 3: 800 Stellen betroffen",
+     "zusammenfassung": "Das Unternehmen reagiert mit Entlassungen und Kurzarbeit auf den anhaltenden Umsatzrückgang. Die Belegschaft reagiert verunsichert.",
+     "url": "https://example.com/demo3/news-stellenabbau",
+     "published_at": "2023-02-03T10:30:00+00:00", "raw": None},
+    {"id": 3, "company_id": 3, "source_type": "news", "provider": "manual",
+     "titel": "Gewinnwarnung: Demo 3 senkt Prognose für 2023",
+     "zusammenfassung": "Nach einem schwachen zweiten Quartal senkt Demo 3 die Umsatz- und Ergebnisprognose deutlich.",
+     "url": "https://example.com/demo3/news-gewinnwarnung",
+     "published_at": "2023-06-20T07:15:00+00:00", "raw": None},
+    {"id": 4, "company_id": 3, "source_type": "adhoc", "provider": "manual",
+     "titel": "Demo 3 AG: Vorstandsvorsitzender verlässt das Unternehmen",
+     "zusammenfassung": "Der CEO legt sein Amt zum Jahresende nieder. Der Aufsichtsrat hat die Nachfolge eingeleitet.",
+     "url": "https://example.com/demo3/adhoc-ceo-wechsel",
+     "published_at": "2023-11-10T18:00:00+00:00", "raw": None},
+    {"id": 5, "company_id": 3, "source_type": "news", "provider": "manual",
+     "titel": "Führungswechsel bei Demo 3: Neuer CEO übernimmt",
+     "zusammenfassung": "Der neue Vorstandsvorsitzende kündigt einen Kulturwandel und mehr interne Kommunikation an.",
+     "url": "https://example.com/demo3/news-neuer-ceo",
+     "published_at": "2023-12-05T09:00:00+00:00", "raw": None},
+    {"id": 6, "company_id": 3, "source_type": "news", "provider": "manual",
+     "titel": "Demo 3 kehrt in die Gewinnzone zurück",
+     "zusammenfassung": "Rekordauftragseingang und erfolgreiche Expansion: Demo 3 plant Neueinstellungen und investiert in Weiterbildung.",
+     "url": "https://example.com/demo3/news-gewinnzone",
+     "published_at": "2024-02-08T08:45:00+00:00", "raw": None},
+    {"id": 7, "company_id": 3, "source_type": "news", "provider": "manual",
+     "titel": "Demo 3 startet Neueinstellungsprogramm",
+     "zusammenfassung": "Nach der Restrukturierung wächst Demo 3 wieder: 300 neue Stellen in Entwicklung und Vertrieb.",
+     "url": "https://example.com/demo3/news-neueinstellungen",
+     "published_at": "2024-03-15T11:00:00+00:00", "raw": None},
+    {"id": 8, "company_id": 3, "source_type": "news", "provider": "manual",
+     "titel": "Tarifabschluss: Gehaltserhöhung für Demo-3-Beschäftigte",
+     "zusammenfassung": "Nach Warnstreiks einigen sich Tarifparteien auf eine Gehaltserhöhung von 5,2 Prozent und einen Bonus.",
+     "url": "https://example.com/demo3/news-tarifabschluss",
+     "published_at": "2024-06-01T14:00:00+00:00", "raw": None},
+    # Demo 1: positiver Verlauf
+    {"id": 9, "company_id": 1, "source_type": "news", "provider": "manual",
+     "titel": "Demo 1 eröffnet neuen Standort und stellt ein",
+     "zusammenfassung": "Expansion: Demo 1 wächst und sucht 150 neue Mitarbeitende.",
+     "url": "https://example.com/demo1/news-expansion",
+     "published_at": "2023-05-10T09:00:00+00:00", "raw": None},
+    {"id": 10, "company_id": 1, "source_type": "news", "provider": "manual",
+     "titel": "Demo 1 erweitert Homeoffice-Regelung dauerhaft",
+     "zusammenfassung": "Mitarbeitende können künftig bis zu vier Tage pro Woche remote arbeiten.",
+     "url": "https://example.com/demo1/news-homeoffice",
+     "published_at": "2024-01-20T08:00:00+00:00", "raw": None},
+    # Demo 2: negativer Verlauf
+    {"id": 11, "company_id": 2, "source_type": "adhoc", "provider": "manual",
+     "titel": "Demo 2 AG: Umsatzrückgang im dritten Quartal",
+     "zusammenfassung": "Der Umsatz sinkt um 12 Prozent, das Unternehmen prüft ein Sparprogramm.",
+     "url": "https://example.com/demo2/adhoc-umsatzrueckgang",
+     "published_at": "2023-10-12T17:30:00+00:00", "raw": None},
+    {"id": 12, "company_id": 2, "source_type": "news", "provider": "manual",
+     "titel": "Demo 2 kündigt Sparprogramm und Stellenabbau an",
+     "zusammenfassung": "Restrukturierung: Bis zu 400 Stellen sollen sozialverträglich abgebaut werden.",
+     "url": "https://example.com/demo2/news-sparprogramm",
+     "published_at": "2023-11-02T10:00:00+00:00", "raw": None},
+]
+
+
+def _interp_monthly(anchors: list[tuple[str, float]]) -> list[tuple[str, float]]:
+    """Lineare Interpolation zwischen (YYYY-MM, Preis)-Ankern, ein Wert je Monat."""
+    def to_idx(period: str) -> int:
+        y, m = period.split("-")
+        return int(y) * 12 + int(m) - 1
+
+    out: list[tuple[str, float]] = []
+    for (p0, v0), (p1, v1) in zip(anchors, anchors[1:]):
+        i0, i1 = to_idx(p0), to_idx(p1)
+        for i in range(i0, i1):
+            frac = (i - i0) / (i1 - i0)
+            y, m = divmod(i, 12)
+            out.append((f"{y:04d}-{m + 1:02d}", v0 + (v1 - v0) * frac))
+    last_p, last_v = anchors[-1]
+    out.append((last_p, last_v))
+    return out
+
+
+def _make_stock_prices() -> list[dict]:
+    anchors_by_company = {
+        # Demo 1: milder Aufwärtstrend
+        1: [("2022-01", 31.0), ("2023-01", 34.0), ("2024-01", 38.5), ("2025-04", 44.0)],
+        # Demo 2: Abwärtstrend
+        2: [("2022-01", 52.0), ("2023-01", 47.0), ("2024-01", 38.0), ("2025-04", 31.5)],
+        # Demo 3: V-Form — Einbruch ab Anfang 2023, Erholung ab 2024
+        3: [("2022-01", 48.0), ("2022-12", 45.0), ("2023-07", 27.0),
+            ("2023-12", 28.5), ("2024-12", 41.0), ("2025-04", 43.0)],
+    }
+    rows: list[dict] = []
+    sid = 1
+    for company_id, anchors in anchors_by_company.items():
+        for period, value in _interp_monthly(anchors):
+            for day, wiggle in (("01", -0.4), ("15", +0.4)):
+                rows.append({
+                    "id": sid,
+                    "company_id": company_id,
+                    "date": f"{period}-{day}",
+                    "close": round(value + wiggle, 2),
+                    "volume": 120_000 + (sid % 7) * 15_000,
+                    "currency": "EUR",
+                })
+                sid += 1
+    return rows
+
+
+_DEMO_STOCK_PRICES = _make_stock_prices()
+
+# Analystenempfehlungen (Monatsverteilung, Stil Yahoo Finance)
+_DEMO_ANALYST_RECOMMENDATIONS = [
+    # Demo 1: überwiegend Buy, stabil
+    {"id": 1, "company_id": 1, "month": "2026-04", "strong_buy": 6, "buy": 11, "hold": 5, "sell": 1, "strong_sell": 0, "fetched_at": "2026-07-01T00:00:00+00:00"},
+    {"id": 2, "company_id": 1, "month": "2026-05", "strong_buy": 7, "buy": 11, "hold": 4, "sell": 1, "strong_sell": 0, "fetched_at": "2026-07-01T00:00:00+00:00"},
+    {"id": 3, "company_id": 1, "month": "2026-06", "strong_buy": 7, "buy": 12, "hold": 4, "sell": 0, "strong_sell": 0, "fetched_at": "2026-07-01T00:00:00+00:00"},
+    {"id": 4, "company_id": 1, "month": "2026-07", "strong_buy": 8, "buy": 12, "hold": 3, "sell": 0, "strong_sell": 0, "fetched_at": "2026-07-01T00:00:00+00:00"},
+    # Demo 2: kippt Richtung Hold/Sell
+    {"id": 5, "company_id": 2, "month": "2026-04", "strong_buy": 2, "buy": 6, "hold": 10, "sell": 3, "strong_sell": 1, "fetched_at": "2026-07-01T00:00:00+00:00"},
+    {"id": 6, "company_id": 2, "month": "2026-05", "strong_buy": 1, "buy": 5, "hold": 11, "sell": 4, "strong_sell": 1, "fetched_at": "2026-07-01T00:00:00+00:00"},
+    {"id": 7, "company_id": 2, "month": "2026-06", "strong_buy": 1, "buy": 4, "hold": 11, "sell": 5, "strong_sell": 2, "fetched_at": "2026-07-01T00:00:00+00:00"},
+    {"id": 8, "company_id": 2, "month": "2026-07", "strong_buy": 1, "buy": 4, "hold": 10, "sell": 6, "strong_sell": 2, "fetched_at": "2026-07-01T00:00:00+00:00"},
+    # Demo 3: Erholung — von Hold zu Buy drehend
+    {"id": 9, "company_id": 3, "month": "2026-04", "strong_buy": 3, "buy": 8, "hold": 9, "sell": 2, "strong_sell": 0, "fetched_at": "2026-07-01T00:00:00+00:00"},
+    {"id": 10, "company_id": 3, "month": "2026-05", "strong_buy": 4, "buy": 9, "hold": 8, "sell": 1, "strong_sell": 0, "fetched_at": "2026-07-01T00:00:00+00:00"},
+    {"id": 11, "company_id": 3, "month": "2026-06", "strong_buy": 5, "buy": 10, "hold": 7, "sell": 1, "strong_sell": 0, "fetched_at": "2026-07-01T00:00:00+00:00"},
+    {"id": 12, "company_id": 3, "month": "2026-07", "strong_buy": 6, "buy": 11, "hold": 6, "sell": 0, "strong_sell": 0, "fetched_at": "2026-07-01T00:00:00+00:00"},
+]
+
+_DEMO_FINANCIAL_KPIS = [
+    {"id": 1, "company_id": 1, "ticker": "DEMO1.DE", "market_cap": 2_400_000_000,
+     "trailing_pe": 21.5, "revenue": 1_900_000_000, "employees": 8_500,
+     "dividend_yield": 0.018, "profit_margin": 0.071, "currency": "EUR",
+     "raw": None, "fetched_at": "2026-07-01T00:00:00+00:00"},
+    {"id": 2, "company_id": 2, "ticker": "DEMO2.DE", "market_cap": 1_100_000_000,
+     "trailing_pe": 14.2, "revenue": 2_600_000_000, "employees": 12_500,
+     "dividend_yield": 0.032, "profit_margin": 0.028, "currency": "EUR",
+     "raw": None, "fetched_at": "2026-07-01T00:00:00+00:00"},
+    {"id": 3, "company_id": 3, "ticker": "DEMO3.DE", "market_cap": 1_800_000_000,
+     "trailing_pe": 17.8, "revenue": 3_100_000_000, "employees": 10_200,
+     "dividend_yield": 0.0, "profit_margin": 0.041, "currency": "EUR",
+     "raw": None, "fetched_at": "2026-07-01T00:00:00+00:00"},
+]
+
 _TABLES: dict[str, list] = {
     "companies": _COMPANIES,
     "employee": _EMPLOYEES,
     "candidates": _CANDIDATES,
     "items": [],
+    "anomalies": [],
+    "context_items": _DEMO_CONTEXT_ITEMS,
+    "stock_prices": _DEMO_STOCK_PRICES,
+    "financial_kpis": _DEMO_FINANCIAL_KPIS,
+    "analyst_recommendations": _DEMO_ANALYST_RECOMMENDATIONS,
+    "explanations": [],
 }
 
 # ---------------------------------------------------------------------------
@@ -590,12 +750,17 @@ class _NotProxy:
 
 class QueryBuilder:
     def __init__(self, rows: list, table_name: str):
-        self._rows = list(rows)
+        self._store = rows                # Referenz auf die Tabelle (fuer Mutationen)
+        self._rows = list(rows)           # gefilterte Sicht (geteilte Dict-Referenzen)
         self._table_name = table_name
         self._select_cols: Optional[list[str]] = None
         self._count_mode: Optional[str] = None
         self._insert_rows: Optional[list] = None
+        self._upsert_rows: Optional[list] = None
+        self._on_conflict: Optional[list[str]] = None
+        self._update_data: Optional[dict] = None
         self._is_delete = False
+        self._prelimit_count: Optional[int] = None  # PostgREST: count zaehlt VOR limit/range
 
     # ---- filtering ----
 
@@ -641,10 +806,14 @@ class QueryBuilder:
         return self
 
     def limit(self, n: int) -> "QueryBuilder":
+        if self._prelimit_count is None:
+            self._prelimit_count = len(self._rows)
         self._rows = self._rows[:n]
         return self
 
     def range(self, start: int, end: int) -> "QueryBuilder":
+        if self._prelimit_count is None:
+            self._prelimit_count = len(self._rows)
         self._rows = self._rows[start: end + 1]
         return self
 
@@ -654,30 +823,79 @@ class QueryBuilder:
     def not_(self) -> _NotProxy:
         return _NotProxy(self)
 
-    # ---- mutations (no-op in demo mode) ----
+    # ---- mutations ----
 
     def insert(self, data: Any) -> "QueryBuilder":
         self._insert_rows = data if isinstance(data, list) else [data]
+        return self
+
+    def upsert(self, data: Any, on_conflict: Optional[str] = None) -> "QueryBuilder":
+        self._upsert_rows = data if isinstance(data, list) else [data]
+        self._on_conflict = (
+            [c.strip() for c in on_conflict.split(",")] if on_conflict else ["id"]
+        )
+        return self
+
+    def update(self, data: dict) -> "QueryBuilder":
+        self._update_data = dict(data)
         return self
 
     def delete(self) -> "QueryBuilder":
         self._is_delete = True
         return self
 
+    def _next_id(self) -> int:
+        return max((int(r.get("id") or 0) for r in self._store), default=0) + 1
+
     # ---- terminal ----
 
     def execute(self) -> Response:
         if self._insert_rows is not None:
-            return Response([])
+            inserted = []
+            for row in self._insert_rows:
+                new_row = dict(row)
+                if new_row.get("id") is None:
+                    new_row["id"] = self._next_id()
+                self._store.append(new_row)
+                inserted.append(new_row)
+            return Response(inserted)
+
+        if self._upsert_rows is not None:
+            written = []
+            for row in self._upsert_rows:
+                match = next(
+                    (r for r in self._store
+                     if all(r.get(c) == row.get(c) for c in self._on_conflict)),
+                    None,
+                )
+                if match is not None:
+                    match.update(row)
+                    written.append(match)
+                else:
+                    new_row = dict(row)
+                    if new_row.get("id") is None:
+                        new_row["id"] = self._next_id()
+                    self._store.append(new_row)
+                    written.append(new_row)
+            return Response(written)
+
+        if self._update_data is not None:
+            for r in self._rows:
+                r.update(self._update_data)
+            return Response(self._rows)
+
         if self._is_delete:
-            return Response([])
+            doomed = {id(r) for r in self._rows}
+            self._store[:] = [r for r in self._store if id(r) not in doomed]
+            return Response(self._rows)
 
         result = self._rows
         if self._select_cols:
             result = [{col: r.get(col) for col in self._select_cols} for r in result]
 
         if self._count_mode == "exact":
-            return Response(result, count=len(result))
+            total = self._prelimit_count if self._prelimit_count is not None else len(result)
+            return Response(result, count=total)
         return Response(result)
 
 
@@ -722,7 +940,7 @@ class _RpcBuilder:
 
 class InMemoryClient:
     def table(self, name: str) -> QueryBuilder:
-        rows = _TABLES.get(name, [])
+        rows = _TABLES.setdefault(name, [])
         return QueryBuilder(rows, name)
 
     def rpc(self, func: str, params: dict) -> _RpcBuilder:

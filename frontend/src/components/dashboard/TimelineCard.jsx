@@ -10,6 +10,7 @@ import {
     Tooltip,
     ResponsiveContainer,
     ReferenceLine,
+    ReferenceDot,
     Legend,
     ComposedChart,
 } from "recharts"
@@ -163,6 +164,7 @@ export const TimelineCard = memo(function TimelineCard({ companyId, onFiltersCha
     const [selectedYear, setSelectedYear] = useState(null)
     const [years, setYears] = useState([])
     const [modalOpen, setModalOpen] = useState(false)
+    const [anomalies, setAnomalies] = useState([])
     
     // Kommuniziere Loading-State nach außen
     useEffect(() => {
@@ -267,6 +269,28 @@ export const TimelineCard = memo(function TimelineCard({ companyId, onFiltersCha
 
         fetchTimelineData()
     }, [companyId, granularity, selectedYear, source, globalTimeRange])
+
+    // Anomalien (2. Design-Zyklus): erkannte Extremveränderungen der Ø-Bewertung.
+    // Der Endpoint führt beim ersten Aufruf automatisch eine Default-Erkennung aus.
+    useEffect(() => {
+        if (!companyId) { setAnomalies([]); return }
+        let cancelled = false
+        const fetchAnomalies = async () => {
+            try {
+                const response = await fetch(
+                    `${API_URL}/anomalies/company/${companyId}?source=${source}&dimension=durchschnittsbewertung`
+                )
+                if (!response.ok) throw new Error(`API Error (anomalies): ${response.status}`)
+                const json = await response.json()
+                if (!cancelled) setAnomalies(json.anomalies || [])
+            } catch (e) {
+                console.error("Error fetching anomalies:", e)
+                if (!cancelled) setAnomalies([])
+            }
+        }
+        fetchAnomalies()
+        return () => { cancelled = true }
+    }, [companyId, source])
 
     // Calculate trend (delta) for each month compared to previous month
     const trendData = useMemo(() => {
@@ -438,6 +462,25 @@ export const TimelineCard = memo(function TimelineCard({ companyId, onFiltersCha
         return null
     }, [chartData])
 
+    // Anomalien auf X-Achsen-Labels mappen ("2023-01" → "Jan 2023", wie
+    // processTimelineDataWithGaps die Daten formatiert)
+    const anomalyByDate = useMemo(() => {
+        const map = new Map()
+        anomalies.forEach((a) => {
+            const [y, m] = String(a.period).split("-").map(Number)
+            if (!Number.isFinite(y) || !Number.isFinite(m)) return
+            map.set(`${MONTH_NAMES[m - 1]} ${y}`, a)
+        })
+        return map
+    }, [anomalies])
+
+    const anomalyMarks = useMemo(() => {
+        if (metric !== "Ø Score") return []
+        return chartData
+            .filter((row) => row.historical != null && anomalyByDate.has(row.date))
+            .map((row) => ({ date: row.date, value: row.historical, anomaly: anomalyByDate.get(row.date) }))
+    }, [chartData, anomalyByDate, metric])
+
     // Calculate Y-axis domain based on metric
     const yAxisDomain = useMemo(() => {
         if (metric === "Anzahl") {
@@ -566,6 +609,21 @@ export const TimelineCard = memo(function TimelineCard({ companyId, onFiltersCha
                                 {dataPoint.count} {dataPoint.count === 1 ? "Bewertung" : "Bewertungen"}
                             </p>
                         )}
+                        {metric === "Ø Score" && anomalyByDate.has(label) && (() => {
+                            const anomaly = anomalyByDate.get(label)
+                            const isFall = anomaly.direction === "fall"
+                            return (
+                                <p className="flex items-center justify-between gap-3 mt-1.5 pt-1.5 border-t border-slate-700">
+                                    <span className="inline-flex items-center gap-1.5 text-slate-400">
+                                        <span className={`w-1.5 h-1.5 rounded-full ${isFall ? "bg-rose-400" : "bg-emerald-400"}`} />
+                                        Anomalie ({String(anomaly.method).toUpperCase()})
+                                    </span>
+                                    <span className={`font-semibold tnum ${isFall ? "text-rose-400" : "text-emerald-400"}`}>
+                                        {isFall ? "−" : "+"}{Math.abs(Number(anomaly.magnitude)).toFixed(2).replace(".", ",")}
+                                    </span>
+                                </p>
+                            )
+                        })()}
                     </>
                 )}
             </div>
@@ -743,6 +801,20 @@ export const TimelineCard = memo(function TimelineCard({ companyId, onFiltersCha
                         connectNulls={false}
                     />
                 )}
+
+                {/* === Anomalie-Marker (2. Design-Zyklus) === */}
+                {metric === "Ø Score" && anomalyMarks.map((mark) => (
+                    <ReferenceDot
+                        key={`anomaly-${mark.anomaly.id ?? mark.date}`}
+                        x={mark.date}
+                        y={mark.value}
+                        r={5}
+                        fill={mark.anomaly.direction === "fall" ? "#f43f5e" : "#10b981"}
+                        stroke="#fff"
+                        strokeWidth={2}
+                        isFront
+                    />
+                ))}
             </ComposedChart>
         </ResponsiveContainer>
     )
@@ -781,8 +853,8 @@ export const TimelineCard = memo(function TimelineCard({ companyId, onFiltersCha
             {metric === "Ø Score" && forecastData.length > 0 && (
                 <>
                     <div className="flex items-center gap-2">
-                        <div className="h-1 w-6 rounded-full bg-orange-500" style={{ 
-                            background: "repeating-linear-gradient(90deg, #f97316 0px, #f97316 8px, transparent 8px, transparent 12px)" 
+                        <div className="h-1 w-6 rounded-full bg-orange-500" style={{
+                            background: "repeating-linear-gradient(90deg, #f97316 0px, #f97316 8px, transparent 8px, transparent 12px)"
                         }}></div>
                         <span className="text-slate-600">Prognose</span>
                     </div>
@@ -793,6 +865,14 @@ export const TimelineCard = memo(function TimelineCard({ companyId, onFiltersCha
                         </div>
                     )}
                 </>
+            )}
+            {metric === "Ø Score" && anomalyMarks.length > 0 && (
+                <div className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-rose-500 border-2 border-white shadow-sm"></span>
+                    <span className="text-slate-600">Anomalie ▼</span>
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-white shadow-sm ml-1"></span>
+                    <span className="text-slate-600">Anomalie ▲</span>
+                </div>
             )}
         </div>
     )

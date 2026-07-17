@@ -157,3 +157,108 @@ ON DELETE SET NULL;
 -- Create index on company_id for faster queries
 CREATE INDEX IF NOT EXISTS idx_employee_company_id ON employee(company_id);
 
+
+-- Migration 006: Anomalie- und Kontext-Tabellen (2. Design-Zyklus)
+-- Description: Ticker-Zuordnung, Anomalien, externe Kontextquellen,
+--   Aktienkurse, Kennzahlen und Erklaerungen (RLS nur in Supabase-Migration 006)
+
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS ticker TEXT;
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS isin TEXT;
+
+CREATE TABLE IF NOT EXISTS anomalies (
+    id SERIAL PRIMARY KEY,
+    company_id INTEGER REFERENCES companies(id) ON DELETE CASCADE,
+    source TEXT NOT NULL DEFAULT 'employee',
+    dimension TEXT NOT NULL,
+    period TEXT NOT NULL,
+    window_start DATE NOT NULL,
+    window_end DATE NOT NULL,
+    direction TEXT NOT NULL,
+    magnitude NUMERIC(4,2),
+    score NUMERIC(8,3),
+    method TEXT NOT NULL,
+    params JSONB NOT NULL DEFAULT '{}'::jsonb,
+    detected_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (company_id, source, dimension, period, method)
+);
+
+CREATE INDEX IF NOT EXISTS idx_anomalies_company ON anomalies(company_id);
+
+CREATE TABLE IF NOT EXISTS context_items (
+    id SERIAL PRIMARY KEY,
+    company_id INTEGER REFERENCES companies(id) ON DELETE CASCADE,
+    source_type TEXT NOT NULL,
+    provider TEXT NOT NULL,
+    titel TEXT NOT NULL,
+    zusammenfassung TEXT,
+    url TEXT,
+    published_at TIMESTAMPTZ,
+    raw JSONB,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_context_items_url
+    ON context_items(company_id, url) WHERE url IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_context_items_company_date
+    ON context_items(company_id, published_at);
+
+CREATE TABLE IF NOT EXISTS stock_prices (
+    id SERIAL PRIMARY KEY,
+    company_id INTEGER REFERENCES companies(id) ON DELETE CASCADE,
+    date DATE NOT NULL,
+    close NUMERIC(14,4),
+    volume BIGINT,
+    currency TEXT,
+    UNIQUE (company_id, date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_stock_prices_company_date ON stock_prices(company_id, date);
+
+CREATE TABLE IF NOT EXISTS financial_kpis (
+    id SERIAL PRIMARY KEY,
+    company_id INTEGER UNIQUE REFERENCES companies(id) ON DELETE CASCADE,
+    ticker TEXT,
+    market_cap NUMERIC,
+    trailing_pe NUMERIC,
+    revenue NUMERIC,
+    employees INTEGER,
+    dividend_yield NUMERIC,
+    profit_margin NUMERIC,
+    currency TEXT,
+    raw JSONB,
+    fetched_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS explanations (
+    id SERIAL PRIMARY KEY,
+    anomaly_id INTEGER REFERENCES anomalies(id) ON DELETE CASCADE,
+    context_item_id INTEGER REFERENCES context_items(id) ON DELETE SET NULL,
+    rank INTEGER,
+    correspondence_score NUMERIC(5,3),
+    matched_topics JSONB,
+    direction_consistent BOOLEAN,
+    review_evidence JSONB,
+    erklaerungstext TEXT,
+    quelle JSONB,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_explanations_anomaly ON explanations(anomaly_id);
+
+-- Migration 007: Analystenempfehlungen (Yahoo Finance)
+
+CREATE TABLE IF NOT EXISTS analyst_recommendations (
+    id SERIAL PRIMARY KEY,
+    company_id INTEGER REFERENCES companies(id) ON DELETE CASCADE,
+    month TEXT NOT NULL,
+    strong_buy INTEGER DEFAULT 0,
+    buy INTEGER DEFAULT 0,
+    hold INTEGER DEFAULT 0,
+    sell INTEGER DEFAULT 0,
+    strong_sell INTEGER DEFAULT 0,
+    fetched_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (company_id, month)
+);
+
+CREATE INDEX IF NOT EXISTS idx_analyst_recommendations_company
+    ON analyst_recommendations(company_id, month);
