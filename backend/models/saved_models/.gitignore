@@ -1,0 +1,9 @@
+# LDA Model Files
+lda_model_*.model
+lda_model_*.dict
+lda_model_*.meta
+lda_model_*.bigram
+lda_model_*.trigram
+lda_model_*.model.id2word
+lda_model_*.model.state
+lda_model_*.model.expElogbeta.npy

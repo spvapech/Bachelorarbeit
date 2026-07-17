@@ -1,0 +1,813 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ============================================================
+   UI-Kit Design Tokens — Stripe / Linear / Vercel style
+   ============================================================ */
+:root {
+  /* Slate colour scale */
+  --slate-0:   #ffffff;
+  --slate-50:  #f8fafc;
+  --slate-100: #f1f5f9;
+  --slate-200: #e2e8f0;
+  --slate-300: #cbd5e1;
+  --slate-400: #94a3b8;
+  --slate-500: #64748b;
+  --slate-600: #475569;
+  --slate-700: #334155;
+  --slate-800: #1e293b;
+  --slate-900: #0f172a;
+
+  /* Accent colours */
+  --emerald-50:  #ecfdf5;
+  --emerald-500: #10b981;
+  --emerald-700: #047857;
+  --rose-50:     #fff1f2;
+  --rose-500:    #f43f5e;
+  --rose-700:    #be123c;
+  --amber-50:    #fffbeb;
+  --amber-500:   #f59e0b;
+  --amber-700:   #b45309;
+  --blue-50:     #eff6ff;
+  --blue-700:    #1d4ed8;
+
+  /* Semantic tokens — light mode */
+  --color-bg:              var(--slate-0);
+  --color-bg-card:         var(--slate-0);
+  --color-fg:              var(--slate-900);
+  --color-fg-muted:        var(--slate-600);
+  --color-fg-subtle:       var(--slate-400);
+  --color-fg-disabled:     var(--slate-300);
+  --color-border:          var(--slate-200);
+  --color-border-strong:   var(--slate-300);
+  --color-border-focus:    #6366f1;
+  --color-primary:         #6366f1;
+  --color-primary-hover:   #4f46e5;
+  --color-chart-1:         #6366f1;
+  --color-chart-2:         #0ea5e9;
+  --color-grid:            var(--slate-100);
+  --color-axis:            var(--slate-400);
+
+  /* Typography */
+  --font-sans: Inter, system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+  --weight-regular:  400;
+  --weight-medium:   500;
+  --weight-semibold: 600;
+
+  /* Radius */
+  --radius-sm:   4px;
+  --radius-md:   6px;
+  --radius-lg:   10px;
+  --radius-full: 9999px;
+
+  /* Shadows */
+  --shadow-xs:         0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-sm:         0 1px 3px 0 rgb(0 0 0 / 0.08);
+  --shadow-focus-ring: 0 0 0 3px rgb(99 102 241 / 0.15);
+
+  /* Hair lines */
+  --hair:        1px solid var(--color-border);
+  --hair-strong: 1px solid var(--color-border-strong);
+
+  /* WorkPulse logo colours */
+  --wp-bubble: #0f2a5c;
+  --wp-pulse:  #ffffff;
+
+  /* Transitions */
+  --duration-fast: 120ms;
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* shadcn / tailwind tokens (kept for compatibility) */
+  --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+}
+
+/* ============================================================
+   Dark-mode overrides
+   ============================================================ */
+.dark {
+  /* Semantic tokens — Dark surfaces */
+  --color-bg:            #0b1220;   /* page background */
+  --color-bg-card:       #131a2b;   /* card surface */
+  --color-fg:            #e2e8f0;   /* primary text */
+  --color-fg-muted:      #94a3b8;   /* muted text */
+  --color-fg-subtle:     #64748b;   /* subtle text */
+  --color-fg-disabled:   #475569;
+  --color-border:        #1e293b;   /* hairlines */
+  --color-border-strong: #334155;
+  --color-border-focus:  #818cf8;   /* indigo-400 — etwas heller in Dark */
+  --color-grid:          #1e293b;
+  --color-axis:          #475569;
+
+  /* WorkPulse logo colours — dark mode */
+  --wp-bubble: #ffffff;
+  --wp-pulse:  #0f2a5c;
+
+  /* Slate-Skala für Dark — invertiert die Helligkeit */
+  --slate-0:   #131a2b;   /* Card bg */
+  --slate-50:  #0f172a;   /* Page bg / hover */
+  --slate-100: #1e293b;
+  --slate-150: #1e293b;
+  --slate-200: #334155;
+  --slate-300: #475569;
+  /* Mid + High bleiben sich treu, werden für Text genutzt: */
+  --slate-400: #64748b;
+  --slate-500: #94a3b8;
+  --slate-600: #cbd5e1;
+  --slate-700: #e2e8f0;
+  --slate-800: #f1f5f9;
+  --slate-900: #f8fafc;
+
+  /* Tonal-Akzente bleiben — funktionieren auch auf Dark gut */
+  /* (emerald, rose, amber, blue Tints sind hell genug) */
+
+  /* shadcn/Tailwind v4 mappings */
+  --background: #0b1220;
+  --foreground: #e2e8f0;
+  --card: #131a2b;
+  --card-foreground: #e2e8f0;
+  --popover: #131a2b;
+  --popover-foreground: #e2e8f0;
+  --primary: #e2e8f0;
+  --primary-foreground: #0b1220;
+  --secondary: #1e293b;
+  --secondary-foreground: #e2e8f0;
+  --muted: #1e293b;
+  --muted-foreground: #94a3b8;
+  --accent: #1e293b;
+  --accent-foreground: #e2e8f0;
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: #1e293b;
+  --input: #1e293b;
+  --ring: #475569;
+  --sidebar: #131a2b;
+  --sidebar-foreground: #e2e8f0;
+  --sidebar-primary: #6366f1;
+  --sidebar-primary-foreground: #f8fafc;
+  --sidebar-accent: #1e293b;
+  --sidebar-accent-foreground: #e2e8f0;
+  --sidebar-border: #1e293b;
+  --sidebar-ring: #475569;
+}
+
+/* ============================================================
+   Dark-mode Tailwind utility overrides
+   Komponenten nutzen meist hartcodierte slate-Werte (bg-white,
+   text-slate-900, border-slate-200, …). Diese spiegeln wir hier
+   für Dark gezielt — dadurch passt sich nahezu alles automatisch an.
+   ============================================================ */
+.dark {
+  color-scheme: dark;
+}
+
+/* --- Surfaces (Backgrounds) --- */
+.dark .bg-white         { background-color: #131a2b !important; }
+.dark .bg-slate-50      { background-color: #0f172a !important; }
+.dark .bg-slate-100     { background-color: #1e293b !important; }
+
+/* Opacity-Varianten (z. B. sticky Table-Header bg-slate-50/80) */
+.dark .bg-slate-50\/80  { background-color: rgba(19, 26, 43, 0.97) !important; }
+.dark .bg-slate-50\/90  { background-color: rgba(19, 26, 43, 0.97) !important; }
+.dark .bg-slate-100\/80 { background-color: rgba(30, 41, 59, 0.90) !important; }
+
+/* bg-*-100 Icon-Hintergründe (Zusammenfassung etc.) */
+.dark .bg-amber-100   { background-color: rgb(245 158 11  / 0.15) !important; }
+.dark .bg-emerald-100 { background-color: rgb(16  185 129 / 0.15) !important; }
+.dark .bg-blue-100    { background-color: rgb(59  130 246 / 0.15) !important; }
+.dark .bg-red-100     { background-color: rgb(239 68  68  / 0.15) !important; }
+
+/* Hover-States */
+.dark .hover\:bg-white:hover  { background-color: #1e293b !important; }
+.dark .hover\:bg-slate-50:hover  { background-color: #1e293b !important; }
+.dark .hover\:bg-slate-100:hover { background-color: #334155 !important; }
+
+/* Backdrop für Refresh-Overlay */
+.dark .bg-white\/70  { background-color: rgb(19 26 43 / 0.7)  !important; }
+.dark .bg-white\/80  { background-color: rgb(19 26 43 / 0.8)  !important; }
+.dark .bg-white\/50  { background-color: rgb(19 26 43 / 0.5)  !important; }
+
+/* --- Borders --- */
+.dark .border-slate-100 { border-color: #1e293b !important; }
+.dark .border-slate-200 { border-color: #1e293b !important; }
+.dark .border-slate-300 { border-color: #334155 !important; }
+.dark .border-l-slate-300 { border-left-color: #334155 !important; }
+.dark .divide-slate-100 > * + * { border-color: #1e293b !important; }
+
+/* --- Text Colors --- */
+.dark .text-slate-900   { color: #f1f5f9 !important; }
+.dark .text-slate-800   { color: #e2e8f0 !important; }
+.dark .text-slate-700   { color: #cbd5e1 !important; }
+.dark .text-slate-600   { color: #94a3b8 !important; }
+.dark .text-slate-500   { color: #94a3b8 !important; }
+.dark .text-slate-400   { color: #64748b !important; }
+.dark .text-slate-300   { color: #475569 !important; }
+
+/* Hover-Text */
+.dark .hover\:text-slate-900:hover { color: #f1f5f9 !important; }
+.dark .hover\:text-slate-800:hover { color: #e2e8f0 !important; }
+.dark .hover\:text-slate-700:hover { color: #cbd5e1 !important; }
+.dark .group:hover .group-hover\:text-slate-700 { color: #cbd5e1 !important; }
+
+/* --- Tonal Pills (subtiler in Dark — leicht abdunkeln) --- */
+.dark .bg-emerald-50  { background-color: rgb(16 185 129 / 0.10) !important; }
+.dark .bg-rose-50     { background-color: rgb(244 63 94 / 0.10)  !important; }
+.dark .bg-amber-50    { background-color: rgb(245 158 11 / 0.10) !important; }
+.dark .bg-blue-50     { background-color: rgb(59 130 246 / 0.10) !important; }
+
+.dark .border-emerald-200 { border-color: rgb(16 185 129 / 0.30) !important; }
+.dark .border-rose-200    { border-color: rgb(244 63 94 / 0.30)  !important; }
+.dark .border-amber-200   { border-color: rgb(245 158 11 / 0.30) !important; }
+.dark .border-blue-200    { border-color: rgb(59 130 246 / 0.30) !important; }
+.dark .border-emerald-300 { border-color: rgb(16 185 129 / 0.45) !important; }
+.dark .border-rose-300    { border-color: rgb(244 63 94 / 0.45)  !important; }
+.dark .border-amber-300   { border-color: rgb(245 158 11 / 0.45) !important; }
+
+/* Tonal Text — etwas heller in Dark für Kontrast */
+.dark .text-emerald-600 { color: #34d399 !important; }
+.dark .text-emerald-700 { color: #34d399 !important; }
+.dark .text-green-600   { color: #4ade80 !important; }
+.dark .text-rose-700    { color: #fb7185 !important; }
+.dark .text-red-500     { color: #fb7185 !important; }
+.dark .text-red-600     { color: #fb7185 !important; }
+.dark .text-amber-600   { color: #fbbf24 !important; }
+.dark .text-amber-700   { color: #fbbf24 !important; }
+.dark .text-orange-400  { color: #fb923c !important; }
+.dark .text-blue-600    { color: #60a5fa !important; }
+.dark .text-blue-700    { color: #60a5fa !important; }
+.dark .text-emerald-800 { color: #6ee7b7 !important; }
+.dark .text-rose-800    { color: #fda4af !important; }
+.dark .text-rose-900    { color: #fecdd3 !important; }
+.dark .hover\:text-blue-800:hover { color: #93c5fd !important; }
+
+/* --- Focus-Rings + Shadows (subtiler in Dark) --- */
+.dark .shadow-xs { box-shadow: 0 1px 0 0 rgb(255 255 255 / 0.04) !important; }
+.dark .shadow-sm { box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.4)      !important; }
+.dark .shadow-md { box-shadow: 0 4px 12px 0 rgb(0 0 0 / 0.5)     !important; }
+
+/* --- Gradient-Backgrounds für KPI-Tiles (transparenter in Dark) --- */
+.dark .from-emerald-50\/70 { --tw-gradient-from: rgb(16 185 129 / 0.10) !important; }
+.dark .from-amber-50\/70   { --tw-gradient-from: rgb(245 158 11 / 0.10) !important; }
+.dark .from-rose-50\/70    { --tw-gradient-from: rgb(244 63 94 / 0.10)  !important; }
+.dark .to-white            { --tw-gradient-to:   transparent             !important; }
+.dark .from-\[\#f5f9ff\]   { --tw-gradient-from: rgb(99 102 241 / 0.08) !important; }
+
+/* --- Slate-bg-Pillen invertieren, damit Inhalt lesbar bleibt --- */
+.dark .bg-slate-900   { background-color: #e2e8f0 !important; color: #0b1220; }
+.dark .text-white     { /* bleibt weiss auf bg-slate-900 → wird zu dark-text */ }
+.dark .bg-slate-900.text-white,
+.dark .bg-slate-900 .text-white { color: #0b1220 !important; }
+
+/* bg-slate-200 als Hintergrund (z. B. Trennlinie) */
+.dark .bg-slate-200   { background-color: #334155 !important; }
+
+/* --- Design-System-Klassen: var(--slate-900) als Hintergrund ---
+   In Dark ist --slate-900 = #f8fafc (hell), daher explizit invertieren */
+.dark .ds-btn-primary                      { background: #e2e8f0; color: #0b1220; }
+.dark .ds-btn-primary:hover:not(:disabled) { background: #f1f5f9; }
+.dark .ds-brand-mark                       { background: #e2e8f0; color: #0b1220; }
+
+/* --- WorkPulse Logo --- */
+
+/* --- Recharts in Dark --- */
+/* Kartesische Charts (Bar, Line, Area) */
+.dark .recharts-cartesian-grid line         { stroke: #1e293b !important; }
+.dark .recharts-cartesian-axis-line         { stroke: #334155 !important; }
+.dark .recharts-cartesian-axis-tick text    { fill:   #94a3b8 !important; }
+
+/* Radar Chart */
+.dark .recharts-polar-grid-angle line,
+.dark .recharts-polar-grid-concentric path,
+.dark .recharts-polar-grid-concentric polygon { stroke: #1e293b !important; }
+.dark .recharts-polar-angle-axis-tick text    { fill:   #94a3b8 !important; }
+.dark .recharts-polar-radius-axis-tick text   { fill:   #64748b !important; }
+
+/* Legende */
+.dark .recharts-legend-item-text { color: #cbd5e1 !important; }
+
+/* ============================================================
+   Base reset
+   ============================================================ */
+* { box-sizing: border-box; }
+
+html, body { margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-fg);
+  background: var(--color-bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  font-weight: 500;
+  color: var(--color-primary);
+  text-decoration: inherit;
+}
+a:hover { color: var(--color-primary-hover); }
+
+/* ============================================================
+   APP SHELL — slim left rail + topbar
+   ============================================================ */
+.ds-app {
+  display: grid;
+  grid-template-columns: 216px 1fr;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  background: var(--slate-50);
+}
+
+/* ---- Rail ---- */
+.ds-rail {
+  background: var(--slate-50);
+  border-right: var(--hair);
+  display: flex;
+  flex-direction: column;
+  padding: 14px 10px;
+  gap: 16px;
+  overflow-y: auto;
+}
+
+.ds-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px 10px;
+}
+.ds-brand-mark {
+  width: 20px; height: 20px;
+  border-radius: 5px;
+  background: var(--slate-900);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font: 600 11px/1 var(--font-sans);
+  letter-spacing: -0.02em;
+  flex-shrink: 0;
+}
+.ds-brand-name {
+  font: 600 13px/1 var(--font-sans);
+  letter-spacing: -0.005em;
+  color: var(--color-fg);
+}
+
+.ds-nav-group { display: flex; flex-direction: column; gap: 1px; }
+.ds-nav-group-label {
+  font: 500 10px/1 var(--font-sans);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-fg-subtle);
+  padding: 10px 8px 6px;
+}
+
+.ds-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: 5px;
+  text-decoration: none;
+  color: var(--color-fg-muted);
+  font: 500 13px/1 var(--font-sans);
+  height: 28px;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  transition: background var(--duration-fast) var(--ease-standard);
+}
+.ds-nav-link svg {
+  width: 14px; height: 14px;
+  stroke: currentColor; stroke-width: 1.5;
+  fill: none; stroke-linecap: round; stroke-linejoin: round;
+  opacity: 0.7;
+  flex-shrink: 0;
+}
+.ds-nav-link:hover {
+  background: var(--slate-100);
+  color: var(--color-fg);
+}
+.ds-nav-link:hover svg { opacity: 1; }
+.ds-nav-link.active {
+  background: var(--slate-100);
+  color: var(--color-fg);
+}
+.ds-nav-link.active svg { opacity: 1; }
+.ds-nav-link:disabled { opacity: 0.5; cursor: not-allowed; }
+.ds-nav-count {
+  margin-left: auto;
+  font: 400 11px/1 var(--font-mono);
+  color: var(--color-fg-subtle);
+}
+
+/* ---- Topbar ---- */
+.ds-topbar {
+  height: 48px;
+  min-height: 48px;
+  border-bottom: var(--hair);
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  gap: 14px;
+  background: var(--slate-0);
+  flex-shrink: 0;
+}
+
+.ds-crumbs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--color-fg-muted);
+  white-space: nowrap;
+  min-width: 0;
+  padding-right: 14px;
+  border-right: var(--hair);
+}
+.ds-crumbs .sep { color: var(--color-fg-subtle); }
+.ds-crumbs .cur {
+  color: var(--color-fg);
+  font-weight: 500;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ds-topbar-search {
+  position: relative;
+  width: 280px;
+  flex-shrink: 0;
+}
+.ds-topbar-search-icon {
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-fg-subtle);
+  pointer-events: none;
+  z-index: 1;
+}
+.ds-topbar-search > div > button,
+.ds-topbar-search button[role="combobox"] {
+  padding-left: 28px !important;
+}
+
+.ds-topbar-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* ---- Global time filter (segmented control in topbar) ---- */
+.ds-time-filter {
+  display: inline-flex;
+  background: var(--slate-50);
+  border: var(--hair);
+  border-radius: var(--radius-md);
+  padding: 2px;
+  gap: 1px;
+}
+.ds-time-btn {
+  font: 500 11px/1 var(--font-sans);
+  height: 22px;
+  padding: 0 10px;
+  border-radius: calc(var(--radius-md) - 2px);
+  border: none;
+  background: transparent;
+  color: var(--color-fg-muted);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard);
+}
+.ds-time-btn:hover { background: var(--slate-100); color: var(--color-fg); }
+.ds-time-btn.active { background: var(--slate-0); color: var(--color-fg); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+.dark .ds-time-filter { background: var(--slate-100); border-color: var(--color-border-strong); }
+.dark .ds-time-btn { color: var(--color-fg-muted); }
+.dark .ds-time-btn:hover { background: var(--slate-200); color: var(--color-fg); }
+.dark .ds-time-btn.active { background: var(--slate-200); color: var(--color-fg); box-shadow: 0 1px 4px rgba(0,0,0,.4); }
+
+/* ---- Buttons ---- */
+.ds-btn {
+  font: 500 12px/1 var(--font-sans);
+  height: 26px;
+  padding: 0 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard);
+}
+.ds-btn svg { width: 12px; height: 12px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.ds-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.ds-btn-primary { background: var(--slate-900); color: #fff; }
+.ds-btn-primary:hover:not(:disabled) { background: var(--slate-800); }
+
+.ds-btn-secondary { background: var(--slate-0); color: var(--color-fg); border-color: var(--color-border-strong); }
+.ds-btn-secondary:hover:not(:disabled) { background: var(--slate-50); }
+
+.ds-btn-ghost { background: transparent; color: var(--color-fg-muted); }
+.ds-btn-ghost:hover:not(:disabled) { background: var(--slate-100); color: var(--color-fg); }
+
+.ds-btn-accent { background: var(--color-primary); color: #fff; }
+.ds-btn-accent:hover:not(:disabled) { background: var(--color-primary-hover); }
+
+/* ---- Chips (segmented control) ---- */
+.ds-chips {
+  display: inline-flex;
+  background: var(--slate-50);
+  border: var(--hair);
+  border-radius: var(--radius-md);
+  padding: 2px;
+}
+.ds-chips button {
+  height: 22px;
+  padding: 0 10px;
+  background: transparent;
+  border: 0;
+  font: 500 12px/1 var(--font-sans);
+  color: var(--color-fg-muted);
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background var(--duration-fast) var(--ease-standard);
+}
+.ds-chips button:hover { color: var(--color-fg); }
+.ds-chips button.active {
+  background: var(--slate-0);
+  color: var(--color-fg);
+  box-shadow: var(--shadow-xs);
+}
+
+/* ---- Badge ---- */
+.ds-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 7px;
+  border-radius: var(--radius-full);
+  font: 500 11px/1.4 var(--font-sans);
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+.ds-badge .ds-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+
+.ds-badge-pos  { background: var(--emerald-50); color: var(--emerald-700); }
+.ds-badge-neg  { background: var(--rose-50);    color: var(--rose-700); }
+.ds-badge-neu  { background: var(--slate-100);  color: var(--slate-600); }
+.ds-badge-info { background: var(--blue-50);    color: var(--blue-700); }
+.ds-badge-warn { background: var(--amber-50);   color: var(--amber-700); }
+.ds-badge-outline { background: var(--slate-0); color: var(--color-fg-muted); border-color: var(--color-border); }
+.ds-badge-mono { font-family: var(--font-mono); font-size: 10.5px; }
+
+/* ---- KPI Strip ---- */
+.ds-kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  background: var(--slate-0);
+  border: var(--hair);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-xs);
+}
+
+.ds-kpi {
+  padding: 14px 16px;
+  border-right: var(--hair);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 104px;
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-standard);
+}
+.ds-kpi:last-child { border-right: 0; }
+.ds-kpi:hover { background: var(--slate-50); }
+
+.ds-kpi-lbl {
+  font: 500 11px/1 var(--font-sans);
+  color: var(--color-fg-muted);
+  letter-spacing: 0.01em;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.ds-kpi-info {
+  width: 13px; height: 13px;
+  border-radius: 50%;
+  background: var(--slate-100);
+  color: var(--slate-500);
+  display: grid;
+  place-items: center;
+  font: 600 9px/1 var(--font-sans);
+  flex-shrink: 0;
+}
+.ds-kpi-val {
+  font: 600 26px/1 var(--font-sans);
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-fg);
+}
+.ds-kpi-val-sm {
+  font-size: 15px;
+  letter-spacing: -0.005em;
+  line-height: 1.3;
+}
+.ds-kpi-delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: auto;
+}
+.ds-kpi-n {
+  font: 400 11px/1 var(--font-mono);
+  color: var(--color-fg-subtle);
+}
+
+/* ---- Card ---- */
+.ds-card {
+  background: var(--slate-0);
+  border: var(--hair);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-xs);
+}
+.ds-card-head {
+  padding: 10px 14px;
+  border-bottom: var(--hair);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 40px;
+}
+.ds-card-title {
+  font: 600 13px/1 var(--font-sans);
+  color: var(--color-fg);
+}
+.ds-card-meta {
+  margin-left: 10px;
+  font: 400 12px/1 var(--font-sans);
+  color: var(--color-fg-subtle);
+  font-variant-numeric: tabular-nums;
+}
+.ds-card-actions { display: flex; gap: 6px; align-items: center; }
+.ds-card-body { padding: 14px; }
+
+/* ---- Content area ---- */
+.ds-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  background: var(--slate-50);
+}
+
+/* ---- Error banner ---- */
+.ds-error {
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  background: var(--rose-50);
+  border: 1px solid var(--rose-500);
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  color: var(--rose-700);
+}
+
+/* ---- Skeleton shimmer ---- */
+.ds-skel,
+.skeleton {
+  background: linear-gradient(90deg, var(--slate-100) 0%, var(--slate-200) 50%, var(--slate-100) 100%);
+  background-size: 200% 100%;
+  animation: ds-shimmer 1.2s linear infinite;
+  border-radius: var(--radius-sm);
+}
+@keyframes ds-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ---- Collapse-row — smooth height via grid-template-rows ---- */
+/* Closing: height collapses immediately after a small delay (so opacity fades first) */
+.collapse-row {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 320ms cubic-bezier(0.4, 0, 0.2, 1) 180ms;
+}
+.collapse-row > .collapse-inner {
+  overflow: hidden;
+  min-height: 0;
+}
+/* Opening: height expands first (no delay), then content fades in (handled inline) */
+.collapse-row.is-open {
+  grid-template-rows: 1fr;
+  transition: grid-template-rows 320ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ---- Tabular nums utility ---- */
+.tnum { font-feature-settings: "tnum" 1; }
+
+/* ---- Legacy .my-btn ---- */
+.my-btn {
+  border-radius: 8px;
+  border: 1px solid transparent;
+  padding: 0.6em 1.2em;
+  font-size: 1em;
+  font-weight: 500;
+  font-family: inherit;
+  background-color: #1a1a1a;
+  cursor: pointer;
+  transition: border-color 0.25s;
+}
+button:focus, button:focus-visible {
+  outline: 4px auto -webkit-focus-ring-color;
+}
+
+/* ---- Tailwind v4 theme mapping ---- */
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * { @apply border-border outline-ring/50; }
+  body { @apply bg-background text-foreground; }
+}
