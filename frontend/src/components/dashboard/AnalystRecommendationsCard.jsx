@@ -36,9 +36,10 @@ const CATEGORIES = [
 ]
 
 /* Segment-Beschriftung nur bei ausreichend großen Segmenten (sonst unleserlich).
-   Bei gestapelten Bars kann `value` als [start, ende] ankommen. */
-const SegmentLabel = ({ x, y, width, height, value }) => {
-    const count = Array.isArray(value) ? value[value.length - 1] - value[0] : value
+   Recharts liefert bei gestapelten Bars kumulierte Werte — daher wird der
+   Einzelwert über index + dataKey direkt aus den Chart-Daten gelesen. */
+const SegmentLabel = ({ x, y, width, height, index, dataKey, data }) => {
+    const count = data?.[index]?.[dataKey]
     if (!count || height < 14) return null
     return (
         <text
@@ -59,7 +60,7 @@ const SegmentLabel = ({ x, y, width, height, value }) => {
    AnalystRecommendationsCard — monatliche Verteilung der Analystenempfehlungen
    (Yahoo Finance, persistiert) als gestapeltes Balkendiagramm.
    ============================================================================ */
-export const AnalystRecommendationsCard = memo(function AnalystRecommendationsCard({ companyId }) {
+export const AnalystRecommendationsCard = memo(function AnalystRecommendationsCard({ companyId, refreshKey = 0 }) {
     const [rows, setRows] = useState([])
     const [loading, setLoading] = useState(true)
     const [refreshing, setRefreshing] = useState(false)
@@ -86,7 +87,7 @@ export const AnalystRecommendationsCard = memo(function AnalystRecommendationsCa
         if (!companyId) { setLoading(false); setRows([]); return }
         setLoading(true)
         fetchData()
-    }, [companyId, fetchData])
+    }, [companyId, fetchData, refreshKey])
 
     const refresh = async (e) => {
         e?.stopPropagation()
@@ -173,7 +174,7 @@ export const AnalystRecommendationsCard = memo(function AnalystRecommendationsCa
                         fill={cat.color}
                         name={cat.label}
                         isAnimationActive={false}
-                        label={<SegmentLabel />}
+                        label={<SegmentLabel dataKey={cat.key} data={chartData} />}
                     />
                 ))}
             </BarChart>

@@ -8,8 +8,13 @@ import {
   Tooltip,
   ResponsiveContainer,
   Legend,
+  ReferenceDot,
 } from "recharts"
-import { Filter, ChevronDown, Maximize2, Calendar, Hash, Eye, Check } from "lucide-react"
+import {
+  Filter, ChevronDown, Maximize2, Calendar, Hash, Eye, Check,
+  AlertTriangle, ExternalLink, TrendingDown, TrendingUp, X as XIcon,
+  Newspaper, Megaphone, CandlestickChart, FileText,
+} from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -81,6 +86,33 @@ function prettifyTopicKey(key) {
   return key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
+const MONTH_NAMES_LONG = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
+  'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember']
+
+function anomalyPeriodLabel(period) {
+  const [y, m] = String(period).split("-").map(Number)
+  if (!Number.isFinite(y) || !Number.isFinite(m)) return period
+  return `${MONTH_NAMES_LONG[m - 1]} ${y}`
+}
+
+const SOURCE_BADGES = {
+  news: { label: "News", cls: "bg-blue-50 text-blue-700 border-blue-200", icon: Newspaper },
+  adhoc: { label: "Ad-hoc", cls: "bg-amber-50 text-amber-700 border-amber-200", icon: Megaphone },
+  stock_move: { label: "Kursbewegung", cls: "bg-violet-50 text-violet-700 border-violet-200", icon: CandlestickChart },
+}
+
+function QuelleBadge({ quelle }) {
+  const badge = SOURCE_BADGES[quelle?.source_type]
+    || { label: "Manuell", cls: "bg-slate-100 text-slate-600 border-slate-200", icon: FileText }
+  const Icon = badge.icon
+  return (
+    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[10px] font-medium flex-none ${badge.cls}`}>
+      <Icon className="w-3 h-3" />
+      {badge.label}
+    </span>
+  )
+}
+
 // Memoized TopicRatingCard für bessere Performance
 export const TopicRatingCard = memo(function TopicRatingCard({ companyId, onFiltersChange, onLoadingChange, globalTimeRange = "all" }) {
   // Defaults
@@ -104,6 +136,11 @@ export const TopicRatingCard = memo(function TopicRatingCard({ companyId, onFilt
 
   // Topics ein/ausblenden
   const [hiddenTopics, setHiddenTopics] = useState(() => new Set())
+
+  // Anomalien & Erklärungen (2. Design-Zyklus)
+  const [anomalyItems, setAnomalyItems] = useState([])          // [{anomaly, explanations}]
+  const [anomalyFilter, setAnomalyFilter] = useState(false)     // "Nur Anomalien"
+  const [selectedAnomaly, setSelectedAnomaly] = useState(null)  // {anomaly, explanations}
   
   // Kommuniziere Loading-State nach außen
   useEffect(() => {
@@ -245,6 +282,30 @@ export const TopicRatingCard = memo(function TopicRatingCard({ companyId, onFilt
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [companyId, source, granularity, selectedYear, globalTimeRange])
 
+  // Anomalien samt Erklärungen laden (Dimensionen = Topic-Keys dieser Karte)
+  useEffect(() => {
+    if (!companyId) { setAnomalyItems([]); setSelectedAnomaly(null); return }
+    let cancelled = false
+    setSelectedAnomaly(null)
+    const fetchAnomalies = async () => {
+      try {
+        const res = await fetch(`${API_URL}/explanations/company/${companyId}?source=${source}`)
+        if (!res.ok) throw new Error(`API Error (anomalies): ${res.status}`)
+        const json = await res.json()
+        if (cancelled) return
+        // Nur Dimensions-Anomalien — die Gesamtbewertung gehört zur Timeline-Karte
+        setAnomalyItems((json.items || []).filter(
+          (it) => it.anomaly?.dimension && it.anomaly.dimension !== "durchschnittsbewertung"
+        ))
+      } catch (e) {
+        console.error("Error fetching topic anomalies:", e)
+        if (!cancelled) setAnomalyItems([])
+      }
+    }
+    fetchAnomalies()
+    return () => { cancelled = true }
+  }, [companyId, source])
+
   // Top-5 Topics nach Häufigkeit (wie oft Werte vorhanden)
   const topicCounts = useMemo(() => {
     const counts = {}
@@ -273,6 +334,17 @@ export const TopicRatingCard = memo(function TopicRatingCard({ companyId, onFilt
   const visibleTopics = useMemo(() => {
     return (topics || []).filter((t) => !hiddenTopics.has(t))
   }, [topics, hiddenTopics])
+
+  // Topics, für die mindestens eine Anomalie erkannt wurde
+  const topicsWithAnomalies = useMemo(() => {
+    const dims = new Set(anomalyItems.map((it) => it.anomaly.dimension))
+    return (topics || []).filter((t) => dims.has(t))
+  }, [topics, anomalyItems])
+
+  // "Nur Anomalien": Sichtbarkeit auf Topics mit Anomalien einschränken
+  const displayTopics = useMemo(() => {
+    return anomalyFilter ? topicsWithAnomalies : visibleTopics
+  }, [anomalyFilter, topicsWithAnomalies, visibleTopics])
 
   // Chart Daten: nur periodLabel setzen (kein Slider)
   const chartData = useMemo(() => {
@@ -355,17 +427,48 @@ export const TopicRatingCard = memo(function TopicRatingCard({ companyId, onFilt
     return Array.from(new Set(notes))
   }, [chartData])
 
+  // Anomalie-Marker auf den sichtbaren Topic-Linien.
+  // Anomalie-Monate ("2023-01") werden auf die Chart-Perioden gemappt:
+  // "ges. Zeitraum" aggregiert jährlich ("2023"), "Jahr"-Modus monatlich.
+  const anomalyMarks = useMemo(() => {
+    const marks = []
+    for (const item of anomalyItems) {
+      const a = item.anomaly
+      if (!displayTopics.includes(a.dimension)) continue
+      const targetPeriod = granularity === "year" ? String(a.period) : String(a.period).slice(0, 4)
+      const row = (chartData || []).find((r) => !r?._isGap && String(r?.period) === targetPeriod)
+      if (!row || row[a.dimension] == null) continue
+      marks.push({
+        x: row.periodLabel,
+        y: row[a.dimension],
+        item,
+        key: `anomaly-${a.id ?? `${a.dimension}-${a.period}`}`,
+      })
+    }
+    return marks
+  }, [anomalyItems, chartData, granularity, displayTopics])
+
+  // Anomalien je Chart-Zeile (für Tooltip-Hinweise)
+  const anomaliesByLabel = useMemo(() => {
+    const map = new Map()
+    for (const mark of anomalyMarks) {
+      if (!map.has(mark.x)) map.set(mark.x, [])
+      map.get(mark.x).push(mark.item)
+    }
+    return map
+  }, [anomalyMarks])
+
   // ── Summary-Stats unter dem Chart (Topic-weite Aggregation) ──────────────
   // Berechnet: Datenpunkte, Ø über alle sichtbaren Topics,
   // bestes / schlechtestes Topic basierend auf dem Durchschnitt.
   const topicStats = useMemo(() => {
-    if (!chartData?.length || !visibleTopics?.length) return null
+    if (!chartData?.length || !displayTopics?.length) return null
 
     const nonGap = chartData.filter((r) => !r?._isGap)
     if (!nonGap.length) return null
 
     const perTopicAvg = {}
-    for (const t of visibleTopics) {
+    for (const t of displayTopics) {
       const vals = nonGap
         .map((r) => Number(r?.[t]))
         .filter((v) => Number.isFinite(v))
@@ -384,11 +487,11 @@ export const TopicRatingCard = memo(function TopicRatingCard({ companyId, onFilt
     return {
       dataPoints: nonGap.length,
       avgOverall: overall,
-      visibleCount: visibleTopics.length,
+      visibleCount: displayTopics.length,
       bestTopic:  { name: prettifyTopicKey(best[0]),  score: best[1]  },
       worstTopic: { name: prettifyTopicKey(worst[0]), score: worst[1] },
     }
-  }, [chartData, visibleTopics])
+  }, [chartData, displayTopics])
 
   // Tonale Klassen wie im Dashboard (good ≥ 3.5, warn 2.5-3.5, bad < 2.5)
   const scoreColorClass = (s) =>
@@ -465,6 +568,26 @@ export const TopicRatingCard = memo(function TopicRatingCard({ companyId, onFilt
             </div>
           ))}
         </div>
+        {anomaliesByLabel.has(label) && (
+          <div className="mt-1.5 pt-1.5 border-t border-slate-700 space-y-0.5">
+            {anomaliesByLabel.get(label).map((it) => {
+              const a = it.anomaly
+              const isFall = a.direction === "fall"
+              return (
+                <div key={a.id} className="flex items-center justify-between gap-3">
+                  <span className="inline-flex items-center gap-1.5 text-slate-400 truncate">
+                    <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isFall ? "bg-rose-400" : "bg-emerald-400"}`} />
+                    Anomalie: {prettifyTopicKey(a.dimension)}
+                  </span>
+                  <span className={`font-semibold tnum ${isFall ? "text-rose-400" : "text-emerald-400"}`}>
+                    {isFall ? "−" : "+"}{Math.abs(Number(a.magnitude)).toFixed(2).replace(".", ",")}
+                  </span>
+                </div>
+              )
+            })}
+            <p className="text-slate-500 text-[10px] m-0 pt-0.5">Punkt anklicken für Erklärungen</p>
+          </div>
+        )}
       </div>
     )
   }
@@ -481,6 +604,30 @@ export const TopicRatingCard = memo(function TopicRatingCard({ companyId, onFilt
           { value: "candidates", label: "Bewerber",    color: "#10b981", icon: true },
         ]}
       />
+
+      {/* Nur Topics mit erkannten Anomalien anzeigen */}
+      <button
+        title={topicsWithAnomalies.length
+          ? `Nur Anomalien: ${topicsWithAnomalies.length} Topic(s) mit erkannten Anomalien`
+          : "Keine Anomalien in den Einzeldimensionen erkannt"}
+        disabled={topicsWithAnomalies.length === 0}
+        onClick={(e) => {
+          e.stopPropagation()
+          setAnomalyFilter((v) => !v)
+        }}
+        className={[
+          "h-7 inline-flex items-center gap-1.5 rounded-md text-[12px] font-medium transition-colors",
+          compact ? "px-2" : "px-2.5",
+          "[&_svg]:flex-none [&_svg]:w-3.5 [&_svg]:h-3.5",
+          anomalyFilter
+            ? "bg-rose-600 text-white border border-rose-600 hover:bg-rose-700"
+            : "bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 disabled:opacity-50",
+        ].join(" ")}
+      >
+        <AlertTriangle className={anomalyFilter ? "text-white" : "text-slate-500"} />
+        {!compact && <span>Nur Anomalien</span>}
+        {compact && <span className="tnum">{topicsWithAnomalies.length}</span>}
+      </button>
 
       <DropdownPicker
         label="Zeit"
@@ -605,7 +752,7 @@ export const TopicRatingCard = memo(function TopicRatingCard({ companyId, onFilt
           cursor={{ stroke: "#cbd5e1", strokeWidth: 1, strokeDasharray: "3 3" }}
         />
 
-        {visibleTopics.map((topic) => {
+        {displayTopics.map((topic) => {
           const colorIdx = (topics || []).indexOf(topic)
           const color = topicColor(Math.max(colorIdx, 0))
           return (
@@ -624,7 +771,7 @@ export const TopicRatingCard = memo(function TopicRatingCard({ companyId, onFilt
         })}
 
         {/* Dashed gap bridge lines for each visible topic — deutlich sichtbar */}
-        {visibleTopics.map((topic) => {
+        {displayTopics.map((topic) => {
           const colorIdx = (topics || []).indexOf(topic)
           return (
             <Line
@@ -656,11 +803,101 @@ export const TopicRatingCard = memo(function TopicRatingCard({ companyId, onFilt
           isAnimationActive={false}
         />
 
+        {/* Anomalie-Marker (2. Design-Zyklus): Klick zeigt Erklärungsansätze */}
+        {anomalyMarks.map((mark) => (
+          <ReferenceDot
+            key={mark.key}
+            x={mark.x}
+            y={mark.y}
+            r={5}
+            fill={mark.item.anomaly.direction === "fall" ? "#f43f5e" : "#10b981"}
+            stroke="#fff"
+            strokeWidth={2}
+            isFront
+            style={{ cursor: "pointer" }}
+            onClick={(_, e) => {
+              e?.stopPropagation?.()
+              setSelectedAnomaly(mark.item)
+            }}
+          />
+        ))}
+
       </LineChart>
     </ResponsiveContainer>
   )
 
 
+
+  // Panel mit Erklärungsansätzen zur angeklickten Anomalie
+  const SelectedAnomalyPanel = ({ compact = false }) => {
+    if (!selectedAnomaly) return null
+    const a = selectedAnomaly.anomaly
+    const explanations = selectedAnomaly.explanations || []
+    const isFall = a.direction === "fall"
+    return (
+      <div
+        className="mt-3 border border-slate-200 rounded-md bg-slate-50 p-3 text-left"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-center gap-2 flex-wrap min-w-0">
+            <span className={`inline-flex items-center gap-1 text-[12px] font-semibold ${isFall ? "text-rose-600" : "text-emerald-600"}`}>
+              {isFall ? <TrendingDown className="w-3.5 h-3.5" /> : <TrendingUp className="w-3.5 h-3.5" />}
+              {isFall ? "Einbruch" : "Anstieg"} {isFall ? "−" : "+"}{Math.abs(Number(a.magnitude)).toFixed(2).replace(".", ",")}
+            </span>
+            <span className="text-[12px] font-medium text-slate-900 truncate">
+              {a.dimension_label || prettifyTopicKey(a.dimension)} · {anomalyPeriodLabel(a.period)}
+            </span>
+            <span className="font-mono text-[9px] tracking-wide uppercase px-1 py-0.5 rounded bg-white text-slate-500 border border-slate-200">
+              {a.method}
+            </span>
+          </div>
+          <button
+            onClick={() => setSelectedAnomaly(null)}
+            className="w-5 h-5 grid place-items-center rounded text-slate-400 hover:text-slate-700 hover:bg-slate-200 flex-none"
+            title="Schließen"
+          >
+            <XIcon className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        {explanations.length === 0 ? (
+          <p className="text-[12px] text-slate-500 m-0 mt-2">
+            Keine Erklärungsansätze vorhanden — im Bereich „Anomalien &amp; Erklärungen“
+            des Dashboards „Erklärungen generieren“ ausführen.
+          </p>
+        ) : (
+          <div className={`mt-2 flex flex-col gap-2 ${compact ? "max-h-[180px]" : "max-h-[260px]"} overflow-y-auto`}>
+            {explanations.map((exp) => (
+              <div key={exp.id} className="border border-slate-200 rounded-md bg-white p-2.5">
+                <div className="flex items-center justify-between gap-2 flex-wrap mb-1">
+                  <QuelleBadge quelle={exp.quelle} />
+                  <span
+                    className="font-mono text-[10px] text-slate-500 tnum"
+                    title="Korrespondenz-Score (zeitlich + thematisch + Richtung)"
+                  >
+                    Score {Number(exp.correspondence_score).toFixed(2).replace(".", ",")}
+                  </span>
+                </div>
+                <p className="text-[12px] leading-[18px] text-slate-700 m-0">{exp.erklaerungstext}</p>
+                {exp.quelle?.url && (
+                  <a
+                    href={exp.quelle.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 text-[11px] font-medium text-blue-600 hover:text-blue-700 mt-1.5"
+                  >
+                    Quelle öffnen
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
 
   // Single empty/error message used in both card + modal chart areas
   const emptyMessage =
@@ -683,7 +920,7 @@ export const TopicRatingCard = memo(function TopicRatingCard({ companyId, onFilt
           icon={<Star />}
           eyebrow="TOPIC-BEWERTUNGEN"
           title="Topics im Detail"
-          subtitle={`${SOURCE_LABEL[source]} · ${visibleTopics.length}/${(topics || []).length} Topics${granularity === "year" && selectedYear ? ` · ${selectedYear}` : " · ges. Zeitraum"}`}
+          subtitle={`${SOURCE_LABEL[source]} · ${displayTopics.length}/${(topics || []).length} Topics${anomalyFilter ? " · nur Anomalien" : ""}${granularity === "year" && selectedYear ? ` · ${selectedYear}` : " · ges. Zeitraum"}`}
           expandable
           actions={<FilterDropdowns compact />}
         />
@@ -709,9 +946,9 @@ export const TopicRatingCard = memo(function TopicRatingCard({ companyId, onFilt
               )}
             </div>
 
-            {visibleTopics.length > 0 && !emptyMessage && (
+            {displayTopics.length > 0 && !emptyMessage && (
               <div className="mt-4 flex items-center justify-center gap-x-4 gap-y-1 flex-wrap text-[11px]">
-                {visibleTopics.slice(0, 6).map((topic) => {
+                {displayTopics.slice(0, 6).map((topic) => {
                   const colorIdx = (topics || []).indexOf(topic)
                   return (
                     <span key={topic} className="inline-flex items-center gap-1.5">
@@ -725,11 +962,21 @@ export const TopicRatingCard = memo(function TopicRatingCard({ companyId, onFilt
                     </span>
                   )
                 })}
-                {visibleTopics.length > 6 && (
-                  <span className="text-slate-400">+ {visibleTopics.length - 6}</span>
+                {displayTopics.length > 6 && (
+                  <span className="text-slate-400">+ {displayTopics.length - 6}</span>
+                )}
+                {anomalyMarks.length > 0 && (
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-rose-500 border-2 border-white shadow-sm"></span>
+                    <span className="text-slate-600">Anomalie ▼</span>
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-white shadow-sm ml-1"></span>
+                    <span className="text-slate-600">Anomalie ▲</span>
+                  </span>
                 )}
               </div>
             )}
+
+            <SelectedAnomalyPanel compact />
           </div>
 
           {gapNotes.length > 0 && (
@@ -825,9 +1072,9 @@ export const TopicRatingCard = memo(function TopicRatingCard({ companyId, onFilt
             </div>
 
             {/* Externe Legende im Modal */}
-            {visibleTopics.length > 0 && !emptyMessage && (
+            {displayTopics.length > 0 && !emptyMessage && (
               <div className="mt-3 flex items-center justify-center gap-x-4 gap-y-1 flex-wrap text-[12px] flex-shrink-0">
-                {visibleTopics.map((topic) => {
+                {displayTopics.map((topic) => {
                   const colorIdx = (topics || []).indexOf(topic)
                   return (
                     <span key={topic} className="inline-flex items-center gap-1.5">
@@ -839,8 +1086,20 @@ export const TopicRatingCard = memo(function TopicRatingCard({ companyId, onFilt
                     </span>
                   )
                 })}
+                {anomalyMarks.length > 0 && (
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-rose-500 border-2 border-white shadow-sm"></span>
+                    <span className="text-slate-600">Anomalie ▼</span>
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-white shadow-sm ml-1"></span>
+                    <span className="text-slate-600">Anomalie ▲</span>
+                  </span>
+                )}
               </div>
             )}
+
+            <div className="flex-shrink-0 overflow-y-auto max-h-[32vh]">
+              <SelectedAnomalyPanel />
+            </div>
 
             {/* Erweiterte Summary-Stats unter dem Chart */}
             {topicStats && (

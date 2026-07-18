@@ -100,6 +100,40 @@ def fetch_prices(ticker: str, years: int = 3) -> Dict[str, Any]:
     return {"currency": currency, "prices": prices}
 
 
+def search_ticker(company_name: str) -> Optional[Dict[str, Any]]:
+    """
+    Ticker über die Yahoo-Finance-Suche anhand des Firmennamens finden.
+
+    Bevorzugt Aktien der deutschen Börse (Exchange 'GER'/Xetra bzw.
+    '.DE'-Symbole), sonst der erste Aktien-Treffer.
+    """
+    try:
+        quotes = yf.Search(company_name, max_results=8).quotes or []
+    except Exception:
+        return None
+
+    equities = [q for q in quotes if isinstance(q, dict) and q.get("quoteType") == "EQUITY"]
+    if not equities:
+        return None
+
+    def rank(quote: Dict[str, Any]) -> int:
+        symbol = str(quote.get("symbol") or "")
+        exchange = str(quote.get("exchange") or "")
+        if exchange == "GER" or symbol.endswith(".DE"):
+            return 0
+        if exchange in ("FRA", "MUN", "STU", "BER", "DUS", "HAM"):
+            return 1
+        return 2
+
+    best = sorted(equities, key=rank)[0]
+    return {
+        "ticker": best.get("symbol"),
+        "name": best.get("shortname") or best.get("longname") or company_name,
+        "exchange": best.get("exchange"),
+        "source": "yahoo",
+    }
+
+
 def fetch_recommendations(ticker: str) -> List[Dict[str, Any]]:
     """
     Analystenempfehlungen (Strong Buy … Strong Sell) je Monat.

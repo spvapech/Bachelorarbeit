@@ -13,6 +13,7 @@ from typing import Any, Dict, List, Optional, Set
 
 from database.supabase_client import get_supabase_client
 from services.context_sources import eqs_source, manual_import, yfinance_source
+from services.ticker_mapping import resolve_ticker_from_map
 
 supabase = get_supabase_client()
 
@@ -34,6 +35,34 @@ def set_company_ticker(company_id: int, ticker: str, isin: Optional[str] = None)
     if company is None:
         raise ValueError(f"Unternehmen {company_id} nicht gefunden")
     return company
+
+
+def resolve_and_set_ticker(company_id: int) -> Dict[str, Any]:
+    """
+    Ticker automatisch anhand des Firmennamens auflösen und speichern:
+    zuerst über die statische DAX/MDAX-Liste, dann über die
+    Yahoo-Finance-Suche (Präferenz: deutsche Börse).
+    """
+    company = get_company(company_id)
+    if company is None:
+        raise ValueError(f"Unternehmen {company_id} nicht gefunden")
+
+    if company.get("ticker"):
+        return {"ticker": company["ticker"], "matched_name": company["name"],
+                "source": "existing"}
+
+    hit = resolve_ticker_from_map(company["name"])
+    if hit is None:
+        hit = yfinance_source.search_ticker(company["name"])
+    if not hit or not hit.get("ticker"):
+        raise LookupError(
+            f"Kein Ticker für '{company['name']}' gefunden — "
+            "vermutlich nicht börsennotiert. Ticker kann manuell gesetzt werden."
+        )
+
+    set_company_ticker(company_id, hit["ticker"])
+    return {"ticker": hit["ticker"], "matched_name": hit.get("name") or company["name"],
+            "source": hit.get("source", "map")}
 
 
 def _existing_urls(company_id: int) -> Set[str]:

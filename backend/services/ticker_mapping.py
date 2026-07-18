@@ -54,11 +54,39 @@ GERMAN_TICKER_MAP: Dict[str, str] = {
     "Siemens Energy": "ENR.DE",
     "Siemens Healthineers": "SHL.DE",
     "Symrise": "SY1.DE",
+    "Thyssenkrupp": "TKA.DE",
     "TUI": "TUI1.DE",
     "Volkswagen": "VOW3.DE",
     "Vonovia": "VNA.DE",
     "Zalando": "ZAL.DE",
 }
+
+# Rechtsformen/Zusätze, die beim Namensabgleich ignoriert werden
+_LEGAL_SUFFIXES = {
+    "se", "ag", "gmbh", "kgaa", "kg", "co", "holding", "holdings", "group",
+    "aktiengesellschaft", "inc", "plc", "sa", "nv", "deutschland",
+}
+
+
+def _normalize_name(name: str) -> str:
+    cleaned = "".join(c if c.isalnum() or c.isspace() else " " for c in name.lower())
+    tokens = [t for t in cleaned.split() if t and t not in _LEGAL_SUFFIXES]
+    return " ".join(tokens)
+
+
+def resolve_ticker_from_map(company_name: str) -> Dict[str, str] | None:
+    """
+    Ticker aus der statischen Liste über den (normalisierten) Firmennamen
+    auflösen — 'SAP SE' matcht 'SAP', 'Thyssenkrupp AG' matcht 'Thyssenkrupp'.
+    """
+    query = _normalize_name(company_name or "")
+    if not query:
+        return None
+    for name, ticker in GERMAN_TICKER_MAP.items():
+        candidate = _normalize_name(name)
+        if query == candidate or query.startswith(candidate + " ") or candidate.startswith(query + " "):
+            return {"ticker": ticker, "name": name, "source": "map"}
+    return None
 
 
 def suggest_tickers(query: str, limit: int = 10) -> List[Dict[str, str]]:

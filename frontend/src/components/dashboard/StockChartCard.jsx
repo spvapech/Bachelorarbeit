@@ -39,7 +39,7 @@ const CURRENCY_SYMBOL = { EUR: "€", USD: "$", GBP: "£" }
    optionalem Overlay der Ø-Bewertung und markierten Anomalie-Monaten.
    Ohne hinterlegten Ticker: Einrichtungs-Dialog mit Vorschlagsliste.
    ============================================================================ */
-export const StockChartCard = memo(function StockChartCard({ companyId, globalTimeRange = "all" }) {
+export const StockChartCard = memo(function StockChartCard({ companyId, globalTimeRange = "all", onContextChanged }) {
     const [stock, setStock] = useState(null)          // {ticker, currency, monthly: [...]}
     const [rating, setRating] = useState([])          // [{date "YYYY-MM", score}]
     const [anomalies, setAnomalies] = useState([])
@@ -54,6 +54,12 @@ export const StockChartCard = memo(function StockChartCard({ companyId, globalTi
     const [suggestions, setSuggestions] = useState([])
     const [saving, setSaving] = useState(false)
     const [refreshErrors, setRefreshErrors] = useState([])
+
+    // Automatische Ticker-Auflösung (einmal je Firma)
+    const autoTriedRef = React.useRef(null)
+    const [resolving, setResolving] = useState(false)
+    const [resolveInfo, setResolveInfo] = useState(null)     // {ticker, matched_name, source}
+    const [resolveFailed, setResolveFailed] = useState(null)
 
     const fetchAll = useCallback(async () => {
         if (!companyId) return
@@ -86,8 +92,48 @@ export const StockChartCard = memo(function StockChartCard({ companyId, globalTi
     useEffect(() => {
         if (!companyId) { setLoading(false); return }
         setLoading(true)
+        setResolveInfo(null)
+        setResolveFailed(null)
         fetchAll()
     }, [companyId, fetchAll])
+
+    // Ohne hinterlegten Ticker: automatisch anhand des Firmennamens auflösen
+    // (statische DAX/MDAX-Liste, dann Yahoo-Finance-Suche) und Daten laden.
+    useEffect(() => {
+        if (!companyId || loading || !stock || stock.ticker) return
+        if (autoTriedRef.current === companyId) return
+        autoTriedRef.current = companyId
+
+        const autoResolve = async () => {
+            setResolving(true)
+            setResolveFailed(null)
+            setRefreshErrors([])
+            try {
+                const res = await fetch(
+                    `${API_URL}/context/company/${companyId}/resolve-ticker`,
+                    { method: "POST" }
+                )
+                if (!res.ok) {
+                    const detail = (await res.json().catch(() => ({})))?.detail
+                    throw new Error(detail || `Automatische Zuordnung fehlgeschlagen (${res.status})`)
+                }
+                const info = await res.json()
+                setResolveInfo(info)
+                const refresh = await fetch(
+                    `${API_URL}/context/company/${companyId}/refresh?sources=prices,kpis,news,recommendations`,
+                    { method: "POST" }
+                )
+                if (refresh.ok) setRefreshErrors((await refresh.json()).errors || [])
+                await fetchAll()
+                onContextChanged?.()
+            } catch (e) {
+                setResolveFailed(e.message)
+            } finally {
+                setResolving(false)
+            }
+        }
+        autoResolve()
+    }, [companyId, loading, stock, fetchAll, onContextChanged])
 
     // Ticker-Vorschläge (statische DAX/MDAX-Liste im Backend)
     useEffect(() => {
@@ -124,6 +170,7 @@ export const StockChartCard = memo(function StockChartCard({ companyId, globalTi
                 setRefreshErrors([detail || `Refresh fehlgeschlagen (${refresh.status})`])
             }
             await fetchAll()
+            onContextChanged?.()
         } catch (e) {
             setRefreshErrors([e.message])
         } finally {
@@ -148,6 +195,7 @@ export const StockChartCard = memo(function StockChartCard({ companyId, globalTi
             setRefreshErrors([e.message])
         }
         await fetchAll()
+        onContextChanged?.()
     }
 
     // Kurs- und Rating-Monate zusammenführen (Union, chronologisch)
@@ -278,6 +326,7 @@ export const StockChartCard = memo(function StockChartCard({ companyId, globalTi
                     activeDot={{ r: 4, fill: "#8b5cf6", stroke: "#fff", strokeWidth: 2 }}
                     name="Kurs"
                     connectNulls
+                    isAnimationActive={false}
                 />
                 {showRating && (
                     <Line
@@ -290,6 +339,7 @@ export const StockChartCard = memo(function StockChartCard({ companyId, globalTi
                         activeDot={{ r: 4, fill: "#3b82f6", stroke: "#fff", strokeWidth: 2 }}
                         name="Ø Bewertung"
                         connectNulls
+                        isAnimationActive={false}
                     />
                 )}
             </ComposedChart>
@@ -317,15 +367,30 @@ export const StockChartCard = memo(function StockChartCard({ companyId, globalTi
         </div>
     )
 
-    // Einrichtungs-Ansicht ohne Ticker bzw. ohne Kursdaten
+    // Einrichtungs-Ansicht ohne Ticker bzw. ohne Kursdaten.
+    // Der Ticker wird zuerst automatisch anhand des Firmennamens gesucht;
+    // die manuelle Eingabe ist nur der Fallback bei erfolgloser Suche.
     const SetupView = () => (
         <div className="h-full flex flex-col items-center justify-center gap-3 px-6 text-center" onClick={(e) => e.stopPropagation()}>
-            {!hasTicker ? (
-                <>
+            {resolving ? (
+                <div className="flex items-center gap-2">
+                    <span className="animate-spin rounded-full h-5 w-5 border-2 border-violet-200 border-t-violet-600" />
                     <p className="text-[13px] text-slate-600 m-0">
-                        Kein Ticker hinterlegt. Yahoo-Finance-Ticker eintragen (z.&nbsp;B. <span className="font-mono">SAP.DE</span>),
-                        um Kurse, Kennzahlen und Nachrichten zu laden.
+                        Ticker wird automatisch gesucht und Daten geladen…
                     </p>
+                </div>
+            ) : !hasTicker ? (
+                <>
+                    {resolveFailed ? (
+                        <p className="text-[12px] text-amber-600 m-0 max-w-[340px]">
+                            {resolveFailed}
+                        </p>
+                    ) : (
+                        <p className="text-[13px] text-slate-600 m-0">
+                            Kein Ticker hinterlegt — Ticker manuell wählen
+                            (z.&nbsp;B. <span className="font-mono">SAP.DE</span>).
+                        </p>
+                    )}
                     <div className="relative w-full max-w-[260px]">
                         <input
                             value={tickerInput}
@@ -446,6 +511,12 @@ export const StockChartCard = memo(function StockChartCard({ companyId, globalTi
                         {cardBody(220)}
                     </div>
                     {hasPrices && !showSetup && <ChartLegend />}
+                    {resolveInfo && hasPrices && (
+                        <p className="text-[11px] text-emerald-600 text-center mt-2 m-0">
+                            Ticker automatisch zugeordnet: <span className="font-mono">{resolveInfo.ticker}</span>
+                            {resolveInfo.matched_name ? ` (${resolveInfo.matched_name})` : ""}
+                        </p>
+                    )}
                     {refreshErrors.length > 0 && hasPrices && (
                         <p className="text-[11px] text-amber-600 text-center mt-2 m-0">{refreshErrors.join(" · ")}</p>
                     )}

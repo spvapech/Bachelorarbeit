@@ -41,7 +41,7 @@ function SourceBadge({ sourceType }) {
 /* ============================================================================
    NewsListCard — persistierte Unternehmensnachrichten & Ad-hoc-Mitteilungen
    ============================================================================ */
-function NewsListCard({ companyId, globalTimeRange }) {
+function NewsListCard({ companyId, globalTimeRange, refreshKey = 0 }) {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -67,7 +67,7 @@ function NewsListCard({ companyId, globalTimeRange }) {
     }
     fetchNews()
     return () => { cancelled = true }
-  }, [companyId])
+  }, [companyId, refreshKey])
 
   const filtered = useMemo(() => {
     let list = [...items]
@@ -213,6 +213,9 @@ export default function Finance() {
   const [companies, setCompanies] = useState([])
   const [globalTimeRange, setGlobalTimeRange] = useState("all")
   const [contextInfo, setContextInfo] = useState(null)
+  // Signal der Aktienkurs-Karte nach Ticker-Auflösung/Refresh an die anderen Karten
+  const [contextVersion, setContextVersion] = useState(0)
+  const handleContextChanged = useCallback(() => setContextVersion((v) => v + 1), [])
 
   const { isDark, toggle: toggleTheme } = useTheme()
 
@@ -240,7 +243,7 @@ export default function Finance() {
     }
     fetchInfo()
     return () => { cancelled = true }
-  }, [selectedCompanyId])
+  }, [selectedCompanyId, contextVersion])
 
   const handleCompanySelect = useCallback((company) => {
     if (company) {
@@ -402,14 +405,15 @@ export default function Finance() {
             <StockChartCard
               companyId={selectedCompanyId}
               globalTimeRange={globalTimeRange}
+              onContextChanged={handleContextChanged}
             />
-            <FinancialKPICard companyId={selectedCompanyId} />
+            <FinancialKPICard companyId={selectedCompanyId} refreshKey={contextVersion} />
           </div>
 
           {/* Analystenempfehlungen + Nachrichten */}
           <div style={{ display: "grid", gridTemplateColumns: "2fr 3fr", gap: 16 }}>
-            <AnalystRecommendationsCard companyId={selectedCompanyId} />
-            <NewsListCard companyId={selectedCompanyId} globalTimeRange={globalTimeRange} />
+            <AnalystRecommendationsCard companyId={selectedCompanyId} refreshKey={contextVersion} />
+            <NewsListCard companyId={selectedCompanyId} globalTimeRange={globalTimeRange} refreshKey={contextVersion} />
           </div>
 
         </div>

@@ -40,7 +40,7 @@ function formatPercent(value) {
    FinancialKPICard — zentrale Unternehmenskennzahlen (Yahoo Finance,
    persistiert): Marktkapitalisierung, KGV, Umsatz, Mitarbeiter.
    ============================================================================ */
-export const FinancialKPICard = memo(function FinancialKPICard({ companyId }) {
+export const FinancialKPICard = memo(function FinancialKPICard({ companyId, refreshKey = 0 }) {
     const [kpis, setKpis] = useState(null)
     const [loading, setLoading] = useState(true)
     const [refreshing, setRefreshing] = useState(false)
@@ -67,7 +67,7 @@ export const FinancialKPICard = memo(function FinancialKPICard({ companyId }) {
         if (!companyId) { setLoading(false); setKpis(null); return }
         setLoading(true)
         fetchKpis()
-    }, [companyId, fetchKpis])
+    }, [companyId, fetchKpis, refreshKey])
 
     const refresh = async (e) => {
         e?.stopPropagation()

@@ -78,6 +78,67 @@ def test_fetch_kpis_survives_info_failure():
     assert kpis["market_cap"] is None
 
 
+# ── Automatische Ticker-Auflösung ────────────────────────────────────────────
+
+def test_resolve_ticker_from_map_handles_legal_forms():
+    from services.ticker_mapping import resolve_ticker_from_map
+    assert resolve_ticker_from_map("SAP SE")["ticker"] == "SAP.DE"
+    assert resolve_ticker_from_map("Thyssenkrupp AG")["ticker"] == "TKA.DE"
+    assert resolve_ticker_from_map("Siemens Aktiengesellschaft")["ticker"] == "SIE.DE"
+    assert resolve_ticker_from_map("adidas")["ticker"] == "ADS.DE"
+    assert resolve_ticker_from_map("Karlsruher Institut für Technologie") is None
+    assert resolve_ticker_from_map("") is None
+
+
+def test_search_ticker_prefers_german_exchange():
+    from services.context_sources.yfinance_source import search_ticker
+    fake = MagicMock()
+    fake.quotes = [
+        {"symbol": "SAP", "quoteType": "EQUITY", "exchange": "NYQ", "shortname": "SAP SE"},
+        {"symbol": "SAP.DE", "quoteType": "EQUITY", "exchange": "GER", "shortname": "SAP SE"},
+        {"symbol": "SAPX", "quoteType": "ETF", "exchange": "GER", "shortname": "irrelevant"},
+    ]
+    with patch("services.context_sources.yfinance_source.yf.Search", return_value=fake):
+        hit = search_ticker("SAP SE")
+    assert hit["ticker"] == "SAP.DE" and hit["source"] == "yahoo"
+
+
+def test_search_ticker_no_equity_returns_none():
+    from services.context_sources.yfinance_source import search_ticker
+    fake = MagicMock()
+    fake.quotes = [{"symbol": "X", "quoteType": "ETF", "exchange": "GER"}]
+    with patch("services.context_sources.yfinance_source.yf.Search", return_value=fake):
+        assert search_ticker("Irgendwas") is None
+
+
+def test_resolve_and_set_ticker_via_map():
+    created = context_service.supabase.table("companies").insert({"name": "Thyssenkrupp AG"}).execute()
+    cid = created.data[0]["id"]
+    try:
+        result = context_service.resolve_and_set_ticker(cid)
+        assert result == {"ticker": "TKA.DE", "matched_name": "Thyssenkrupp", "source": "map"}
+        assert context_service.get_company(cid)["ticker"] == "TKA.DE"
+        # zweiter Aufruf: bereits gesetzt
+        assert context_service.resolve_and_set_ticker(cid)["source"] == "existing"
+    finally:
+        context_service.supabase.table("companies").delete().eq("id", cid).execute()
+
+
+def test_resolve_and_set_ticker_not_found():
+    created = context_service.supabase.table("companies").insert({"name": "Nicht Boersennotiert e.V."}).execute()
+    cid = created.data[0]["id"]
+    try:
+        with patch("services.context_service.yfinance_source.search_ticker", return_value=None):
+            try:
+                context_service.resolve_and_set_ticker(cid)
+                assert False, "sollte LookupError werfen"
+            except LookupError as e:
+                assert "Kein Ticker" in str(e)
+        assert context_service.get_company(cid).get("ticker") is None
+    finally:
+        context_service.supabase.table("companies").delete().eq("id", cid).execute()
+
+
 # ── Analystenempfehlungen ────────────────────────────────────────────────────
 
 def test_fetch_recommendations_resolves_relative_periods():

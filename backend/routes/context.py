@@ -36,6 +36,19 @@ async def context_overview(company_id: int):
         raise HTTPException(status_code=500, detail=f"Fehler bei der Kontext-Übersicht: {str(e)}")
 
 
+@router.post("/company/{company_id}/resolve-ticker")
+async def resolve_ticker(company_id: int):
+    """Ticker automatisch anhand des Firmennamens auflösen und speichern."""
+    try:
+        return context_service.resolve_and_set_ticker(company_id)
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Fehler bei der Ticker-Auflösung: {str(e)}")
+
+
 @router.put("/company/{company_id}/ticker")
 async def update_ticker(company_id: int, body: TickerUpdate):
     """Ticker (und optional ISIN) eines Unternehmens setzen."""
