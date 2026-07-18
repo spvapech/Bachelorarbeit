@@ -34,7 +34,7 @@ export function ChartCardHeader({
         <div className="flex items-start gap-2.5 min-w-0 flex-1">
           {icon && (
             <span className="w-7 h-7 rounded-md grid place-items-center flex-none bg-slate-100 text-slate-600 mt-0.5">
-              <span className="w-[14px] h-[14px]">{icon}</span>
+              <span className="w-[14px] h-[14px] grid place-items-center [&_svg]:w-full [&_svg]:h-full">{icon}</span>
             </span>
           )}
           <div className="min-w-0 flex-1">

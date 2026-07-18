@@ -10,6 +10,11 @@ import {
     ResponsiveContainer,
 } from "recharts"
 import { ThumbsUp, RefreshCw } from "lucide-react"
+import {
+    Dialog,
+    DialogContent,
+    DialogTitle,
+} from "@/components/ui/dialog"
 import { API_URL } from "@/config"
 import { ChartCardHeader } from "./ChartHeader"
 
@@ -59,6 +64,7 @@ export const AnalystRecommendationsCard = memo(function AnalystRecommendationsCa
     const [loading, setLoading] = useState(true)
     const [refreshing, setRefreshing] = useState(false)
     const [error, setError] = useState(null)
+    const [modalOpen, setModalOpen] = useState(false)
 
     const fetchData = useCallback(async () => {
         if (!companyId) return
@@ -140,88 +146,144 @@ export const AnalystRecommendationsCard = memo(function AnalystRecommendationsCa
             ? "Keine Empfehlungen persistiert — Ticker einrichten und Daten laden (Aktienkurs-Karte)"
             : null
 
-    return (
-        <div className="group bg-white border border-slate-200 rounded-lg overflow-hidden shadow-xs hover:shadow-sm transition-shadow flex flex-col h-full">
-            <ChartCardHeader
-                icon={<ThumbsUp />}
-                eyebrow="FINANZMARKT · ANALYSTENEMPFEHLUNGEN"
-                title="Analyst Recommendations"
-                subtitle={latestTotal ? `${latestTotal} Analysten · Yahoo Finance` : "Verteilung je Monat"}
-                actions={chartData.length > 0 ? (
-                    <button
-                        title="Empfehlungen neu laden (Yahoo Finance)"
-                        onClick={refresh}
-                        className="h-7 px-2.5 inline-flex items-center gap-1.5 rounded-md text-[12px] font-medium bg-white text-slate-600 border border-slate-300 hover:bg-slate-50 transition-colors"
-                    >
-                        <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} />
-                        Aktualisieren
-                    </button>
-                ) : null}
-            />
+    const RecommendationsChart = ({ height = 240 }) => (
+        <ResponsiveContainer width="100%" height={height === "100%" ? "100%" : height}>
+            <BarChart data={chartData} margin={{ left: 0, right: 8, top: 8, bottom: 5 }} barCategoryGap="28%">
+                <CartesianGrid strokeDasharray="2 4" stroke="#f1f5f9" vertical={false} />
+                <XAxis
+                    dataKey="month"
+                    tick={{ fontSize: 10, fill: "#94a3b8" }}
+                    tickLine={false}
+                    axisLine={{ stroke: "#e2e8f0" }}
+                    tickMargin={8}
+                />
+                <YAxis
+                    allowDecimals={false}
+                    tick={{ fontSize: 10, fill: "#94a3b8" }}
+                    tickLine={false}
+                    axisLine={false}
+                    width={28}
+                />
+                <Tooltip content={<CustomTooltip />} cursor={{ fill: "rgba(148, 163, 184, 0.08)" }} />
+                {CATEGORIES.map((cat) => (
+                    <Bar
+                        key={cat.key}
+                        dataKey={cat.key}
+                        stackId="empfehlungen"
+                        fill={cat.color}
+                        name={cat.label}
+                        isAnimationActive={false}
+                        label={<SegmentLabel />}
+                    />
+                ))}
+            </BarChart>
+        </ResponsiveContainer>
+    )
 
-            <div className="px-4 pt-4 pb-4 flex flex-col flex-1 min-h-0">
-                <div className="relative h-[240px] w-full flex-shrink-0">
-                    {emptyMessage && !loading ? (
-                        <div className="h-full flex items-center justify-center px-6">
-                            <p className="text-[13px] text-slate-500 text-center max-w-[280px] m-0">{emptyMessage}</p>
-                        </div>
-                    ) : (
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={chartData} margin={{ left: 0, right: 8, top: 8, bottom: 5 }} barCategoryGap="28%">
-                                <CartesianGrid strokeDasharray="2 4" stroke="#f1f5f9" vertical={false} />
-                                <XAxis
-                                    dataKey="month"
-                                    tick={{ fontSize: 10, fill: "#94a3b8" }}
-                                    tickLine={false}
-                                    axisLine={{ stroke: "#e2e8f0" }}
-                                    tickMargin={8}
-                                />
-                                <YAxis
-                                    allowDecimals={false}
-                                    tick={{ fontSize: 10, fill: "#94a3b8" }}
-                                    tickLine={false}
-                                    axisLine={false}
-                                    width={28}
-                                />
-                                <Tooltip content={<CustomTooltip />} cursor={{ fill: "rgba(148, 163, 184, 0.08)" }} />
-                                {CATEGORIES.map((cat) => (
-                                    <Bar
-                                        key={cat.key}
-                                        dataKey={cat.key}
-                                        stackId="empfehlungen"
-                                        fill={cat.color}
-                                        name={cat.label}
-                                        isAnimationActive={false}
-                                        label={<SegmentLabel />}
-                                    />
-                                ))}
-                            </BarChart>
-                        </ResponsiveContainer>
-                    )}
-                    {(loading || refreshing) && (
-                        <div className="absolute inset-0 bg-white/70 flex items-center justify-center rounded-md pointer-events-none">
-                            <div className="flex items-center gap-2">
-                                <div className="animate-spin rounded-full h-5 w-5 border-2 border-slate-200 border-t-slate-600"></div>
-                                <p className="text-slate-600 text-[12px] m-0">Lade Empfehlungen…</p>
+    const ChartLegend = () => (
+        <div className="mt-3 flex items-center justify-center gap-3 flex-wrap text-[11px]">
+            {CATEGORIES.map((cat) => (
+                <div key={cat.key} className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-sm" style={{ background: cat.color }}></span>
+                    <span className="text-slate-600">{cat.label}</span>
+                </div>
+            ))}
+        </div>
+    )
+
+    return (
+        <>
+            <div
+                className="group bg-white border border-slate-200 rounded-lg overflow-hidden shadow-xs hover:shadow-sm transition-shadow cursor-pointer flex flex-col h-full"
+                onClick={() => setModalOpen(true)}
+            >
+                <ChartCardHeader
+                    icon={<ThumbsUp />}
+                    eyebrow="FINANZMARKT · ANALYSTENEMPFEHLUNGEN"
+                    title="Analyst Recommendations"
+                    subtitle={latestTotal ? `${latestTotal} Analysten · Yahoo Finance` : "Verteilung je Monat"}
+                    expandable
+                    actions={chartData.length > 0 ? (
+                        <button
+                            title="Empfehlungen neu laden (Yahoo Finance)"
+                            onClick={refresh}
+                            className="h-7 px-2.5 inline-flex items-center gap-1.5 rounded-md text-[12px] font-medium bg-white text-slate-600 border border-slate-300 hover:bg-slate-50 transition-colors"
+                        >
+                            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} />
+                            Aktualisieren
+                        </button>
+                    ) : null}
+                />
+
+                <div className="px-4 pt-4 pb-4 flex flex-col flex-1 min-h-0">
+                    <div className="relative h-[240px] w-full flex-shrink-0">
+                        {emptyMessage && !loading ? (
+                            <div className="h-full flex items-center justify-center px-6">
+                                <p className="text-[13px] text-slate-500 text-center max-w-[280px] m-0">{emptyMessage}</p>
+                            </div>
+                        ) : (
+                            <RecommendationsChart height={240} />
+                        )}
+                        {(loading || refreshing) && (
+                            <div className="absolute inset-0 bg-white/70 flex items-center justify-center rounded-md pointer-events-none">
+                                <div className="flex items-center gap-2">
+                                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-slate-200 border-t-slate-600"></div>
+                                    <p className="text-slate-600 text-[12px] m-0">Lade Empfehlungen…</p>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    <ChartLegend />
+
+                    <div className="flex-1" />
+                    <p className="text-[11px] text-slate-400 text-center mt-3 m-0">
+                        Karte anklicken zum Vergrössern
+                    </p>
+                </div>
+            </div>
+
+            <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+                <DialogContent
+                    className="overflow-hidden flex flex-col p-0 gap-0"
+                    style={{ width: "90vw", maxWidth: "90vw", height: "85vh", maxHeight: "85vh" }}
+                >
+                    <span aria-hidden="true" className="block h-[3px] w-full bg-green-500" />
+                    <div className="px-5 py-4 pr-14 border-b border-slate-200 flex items-start justify-between gap-3 flex-shrink-0">
+                        <div className="flex items-start gap-2.5">
+                            <span className="w-9 h-9 rounded-md grid place-items-center bg-green-50 text-green-600 flex-none">
+                                <ThumbsUp className="w-[18px] h-[18px]" />
+                            </span>
+                            <div>
+                                <p className="m-0 mb-0.5 font-mono text-[10px] tracking-[0.06em] uppercase text-slate-500 leading-none">
+                                    FINANZMARKT · ANALYSTENEMPFEHLUNGEN
+                                </p>
+                                <DialogTitle className="m-0 text-[18px] leading-6 font-semibold tracking-tight text-slate-900">
+                                    Analyst Recommendations
+                                </DialogTitle>
+                                <p className="m-0 mt-0.5 text-[11px] text-slate-500">
+                                    {latestTotal ? `${latestTotal} Analysten · Yahoo Finance` : "Verteilung je Monat"}
+                                </p>
                             </div>
                         </div>
-                    )}
-                </div>
-
-                <div className="mt-3 flex items-center justify-center gap-3 flex-wrap text-[11px]">
-                    {CATEGORIES.map((cat) => (
-                        <div key={cat.key} className="flex items-center gap-1.5">
-                            <span className="w-2.5 h-2.5 rounded-sm" style={{ background: cat.color }}></span>
-                            <span className="text-slate-600">{cat.label}</span>
+                    </div>
+                    <div className="flex-1 flex flex-col min-h-0 px-5 py-4">
+                        <div className="flex-1 min-h-0 relative overflow-hidden">
+                            {emptyMessage && !loading ? (
+                                <div className="h-full flex items-center justify-center">
+                                    <p className="text-[13px] text-slate-500 m-0">{emptyMessage}</p>
+                                </div>
+                            ) : (
+                                <RecommendationsChart height="100%" />
+                            )}
                         </div>
-                    ))}
-                </div>
-
-                <div className="flex-1" />
-                <p className="text-[11px] text-slate-400 text-center mt-3 m-0">
-                    Yahoo Finance (persistiert) · wiederholte Abrufe bauen Historie auf
-                </p>
-            </div>
-        </div>
+                        <ChartLegend />
+                        <p className="text-[11px] text-slate-400 text-center mt-2 m-0 flex-shrink-0">
+                            Yahoo Finance (persistiert) · wiederholte Abrufe bauen Historie auf
+                        </p>
+                    </div>
+                </DialogContent>
+            </Dialog>
+        </>
     )
 })

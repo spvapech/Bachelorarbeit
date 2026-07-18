@@ -321,11 +321,12 @@ def build_stock_move_candidates(company_id: int, window_start: str,
         if abs(ret) < STOCK_MOVE_THRESHOLD:
             continue
         sign = "+" if ret > 0 else "−"
+        ret_str = f"{abs(ret) * 100:.1f}".replace(".", ",")
         candidates.append({
             "id": None,
             "source_type": "stock_move",
             "provider": "derived",
-            "titel": f"Kursbewegung {sign}{abs(ret) * 100:.1f} % im {_month_label(period)}",
+            "titel": f"Kursbewegung {sign}{ret_str} % im {_month_label(period)}",
             "zusammenfassung": (
                 f"Der Aktienkurs veränderte sich von {prev['close']:.2f} auf "
                 f"{curr['close']:.2f} {series.get('currency') or ''}".strip() + "."
@@ -363,8 +364,13 @@ def format_erklaerungstext(anomaly: Dict[str, Any], item: Dict[str, Any],
     published = _parse_dt(item.get("published_at"))
     datum = f" ({published.strftime('%d.%m.%Y')})" if published else ""
 
-    text = (f"Der {richtung} der {dim} im {monat}{delta} fällt zeitlich mit "
-            f"{phrase} „{item.get('titel')}“{datum} zusammen.")
+    if item.get("source_type") == "stock_move":
+        # Titel liest sich bereits als "Kursbewegung +15,3 % im Januar 2024"
+        text = (f"Der {richtung} der {dim} im {monat}{delta} fällt zeitlich mit "
+                f"der {item.get('titel')} zusammen.")
+    else:
+        text = (f"Der {richtung} der {dim} im {monat}{delta} fällt zeitlich mit "
+                f"{phrase} „{item.get('titel')}“{datum} zusammen.")
 
     if scored.get("matched_topics"):
         text += (" Thematisch betroffene Bewertungsdimensionen: "

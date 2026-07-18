@@ -95,7 +95,7 @@ export function KPITile({ label, icon, value, valueSize = "lg", delta, footer, t
         <span className={["inline-flex items-center gap-1.5 text-[11px] font-medium tracking-[0.02em]", t.label].join(" ")}>
           {icon ? (
             <span className={["w-4 h-4 rounded-md grid place-items-center flex-none", t.iconWrap].join(" ")}>
-              <span className="w-3 h-3">{icon}</span>
+              <span className="w-3 h-3 grid place-items-center [&_svg]:w-full [&_svg]:h-full">{icon}</span>
             </span>
           ) : null}
           {label}

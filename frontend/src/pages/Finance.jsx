@@ -2,6 +2,11 @@ import * as React from "react"
 import { useState, useEffect, useMemo, useCallback } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
 import { Newspaper, Megaphone, ExternalLink, FileText } from "lucide-react"
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
 import { WorkPulseLogo } from "@/components/WorkPulseLogo"
 import { CompanySearchSelect } from "@/components/CompanySearchSelect"
@@ -40,6 +45,7 @@ function NewsListCard({ companyId, globalTimeRange }) {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [modalOpen, setModalOpen] = useState(false)
 
   useEffect(() => {
     if (!companyId) { setLoading(false); setItems([]); return }
@@ -74,76 +80,120 @@ function NewsListCard({ companyId, globalTimeRange }) {
     return list.sort((a, b) => String(b.published_at || "").localeCompare(String(a.published_at || "")))
   }, [items, globalTimeRange])
 
+  const NewsList = ({ compact = true }) => (
+    loading ? (
+      <div className="h-[160px] flex items-center justify-center">
+        <div className="flex items-center gap-2">
+          <div className="animate-spin rounded-full h-5 w-5 border-2 border-slate-200 border-t-slate-600"></div>
+          <p className="text-slate-600 text-[12px] m-0">Lade Ereignisse…</p>
+        </div>
+      </div>
+    ) : !companyId ? (
+      <div className="h-[160px] flex items-center justify-center">
+        <p className="text-[13px] text-slate-500 m-0">Keine Firma ausgewählt</p>
+      </div>
+    ) : error ? (
+      <div className="h-[160px] flex items-center justify-center">
+        <p className="text-[13px] text-slate-500 m-0">Fehler: {error}</p>
+      </div>
+    ) : filtered.length === 0 ? (
+      <div className="h-[160px] flex items-center justify-center px-6 text-center">
+        <p className="text-[13px] text-slate-500 m-0">
+          Keine Ereignisse persistiert — über die Aktienkurs-Karte „Daten laden“ ausführen
+          oder Ereignisse manuell importieren.
+        </p>
+      </div>
+    ) : (
+      <ul className="m-0 p-0 list-none divide-y divide-slate-100">
+        {filtered.map((item) => (
+          <li key={item.id} className="px-4 py-2.5 hover:bg-slate-50 transition-colors">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-2 min-w-0">
+                <SourceBadge sourceType={item.source_type} />
+                <div className="min-w-0">
+                  <p className={`m-0 text-[13px] leading-5 font-medium text-slate-900 ${compact ? "truncate" : ""}`}>
+                    {item.url ? (
+                      <a href={item.url} target="_blank" rel="noreferrer"
+                         onClick={(e) => e.stopPropagation()}
+                         className="hover:text-blue-700 inline-flex items-center gap-1">
+                        {item.titel}
+                        <ExternalLink className="w-3 h-3 text-slate-400 flex-none" />
+                      </a>
+                    ) : item.titel}
+                  </p>
+                  {item.zusammenfassung && (
+                    <p className={`m-0 mt-0.5 text-[11px] leading-4 text-slate-500 ${compact ? "line-clamp-2" : ""}`}>
+                      {item.zusammenfassung}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <span className="text-[11px] text-slate-400 tnum flex-none">
+                {item.published_at
+                  ? new Date(item.published_at).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" })
+                  : "—"}
+              </span>
+            </div>
+          </li>
+        ))}
+      </ul>
+    )
+  )
+
   return (
-    <div className="group bg-white border border-slate-200 rounded-lg overflow-hidden shadow-xs hover:shadow-sm transition-shadow flex flex-col">
-      <ChartCardHeader
-        icon={<Newspaper />}
-        eyebrow="KONTEXTSAMMLUNG · EXTERNE QUELLEN"
-        title="Nachrichten & Ad-hoc-Mitteilungen"
-        subtitle={`${filtered.length} persistierte Ereignisse${globalTimeRange !== "all" ? " im gewählten Zeitraum" : ""}`}
-      />
-      <div className="relative min-h-[160px] max-h-[420px] overflow-y-auto">
-        {loading ? (
-          <div className="h-[160px] flex items-center justify-center">
-            <div className="flex items-center gap-2">
-              <div className="animate-spin rounded-full h-5 w-5 border-2 border-slate-200 border-t-slate-600"></div>
-              <p className="text-slate-600 text-[12px] m-0">Lade Ereignisse…</p>
+    <>
+      <div
+        className="group bg-white border border-slate-200 rounded-lg overflow-hidden shadow-xs hover:shadow-sm transition-shadow cursor-pointer flex flex-col"
+        onClick={() => setModalOpen(true)}
+      >
+        <ChartCardHeader
+          icon={<Newspaper />}
+          eyebrow="KONTEXTSAMMLUNG · EXTERNE QUELLEN"
+          title="Nachrichten & Ad-hoc-Mitteilungen"
+          subtitle={`${filtered.length} persistierte Ereignisse${globalTimeRange !== "all" ? " im gewählten Zeitraum" : ""}`}
+          expandable
+        />
+        <div className="relative min-h-[160px] max-h-[420px] overflow-y-auto">
+          <NewsList compact />
+        </div>
+        <p className="text-[11px] text-slate-400 text-center py-2.5 border-t border-slate-100 m-0">
+          Karte anklicken zum Vergrössern · Quellen: Yahoo Finance · EQS-News-RSS · manueller Import
+        </p>
+      </div>
+
+      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+        <DialogContent
+          className="overflow-hidden flex flex-col p-0 gap-0"
+          style={{ width: "90vw", maxWidth: "90vw", height: "85vh", maxHeight: "85vh" }}
+        >
+          <span aria-hidden="true" className="block h-[3px] w-full bg-sky-500" />
+          <div className="px-5 py-4 pr-14 border-b border-slate-200 flex items-start justify-between gap-3 flex-shrink-0">
+            <div className="flex items-start gap-2.5">
+              <span className="w-9 h-9 rounded-md grid place-items-center bg-sky-50 text-sky-600 flex-none">
+                <Newspaper className="w-[18px] h-[18px]" />
+              </span>
+              <div>
+                <p className="m-0 mb-0.5 font-mono text-[10px] tracking-[0.06em] uppercase text-slate-500 leading-none">
+                  KONTEXTSAMMLUNG · EXTERNE QUELLEN
+                </p>
+                <DialogTitle className="m-0 text-[18px] leading-6 font-semibold tracking-tight text-slate-900">
+                  Nachrichten & Ad-hoc-Mitteilungen
+                </DialogTitle>
+                <p className="m-0 mt-0.5 text-[11px] text-slate-500">
+                  {filtered.length} persistierte Ereignisse
+                </p>
+              </div>
             </div>
           </div>
-        ) : !companyId ? (
-          <div className="h-[160px] flex items-center justify-center">
-            <p className="text-[13px] text-slate-500 m-0">Keine Firma ausgewählt</p>
+          <div className="flex-1 min-h-0 overflow-y-auto">
+            <NewsList compact={false} />
           </div>
-        ) : error ? (
-          <div className="h-[160px] flex items-center justify-center">
-            <p className="text-[13px] text-slate-500 m-0">Fehler: {error}</p>
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="h-[160px] flex items-center justify-center px-6 text-center">
-            <p className="text-[13px] text-slate-500 m-0">
-              Keine Ereignisse persistiert — über die Aktienkurs-Karte „Daten laden“ ausführen
-              oder Ereignisse manuell importieren.
-            </p>
-          </div>
-        ) : (
-          <ul className="m-0 p-0 list-none divide-y divide-slate-100">
-            {filtered.map((item) => (
-              <li key={item.id} className="px-4 py-2.5 hover:bg-slate-50 transition-colors">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-start gap-2 min-w-0">
-                    <SourceBadge sourceType={item.source_type} />
-                    <div className="min-w-0">
-                      <p className="m-0 text-[13px] leading-5 font-medium text-slate-900 truncate">
-                        {item.url ? (
-                          <a href={item.url} target="_blank" rel="noreferrer"
-                             className="hover:text-blue-700 inline-flex items-center gap-1">
-                            {item.titel}
-                            <ExternalLink className="w-3 h-3 text-slate-400 flex-none" />
-                          </a>
-                        ) : item.titel}
-                      </p>
-                      {item.zusammenfassung && (
-                        <p className="m-0 mt-0.5 text-[11px] leading-4 text-slate-500 line-clamp-2">
-                          {item.zusammenfassung}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <span className="text-[11px] text-slate-400 tnum flex-none">
-                    {item.published_at
-                      ? new Date(item.published_at).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" })
-                      : "—"}
-                  </span>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-      <p className="text-[11px] text-slate-400 text-center py-2.5 border-t border-slate-100 m-0">
-        Quellen: Yahoo Finance · EQS-News-RSS · manueller Import — persistiert, kein Live-Abruf
-      </p>
-    </div>
+          <p className="text-[11px] text-slate-400 text-center py-2.5 border-t border-slate-100 m-0 flex-shrink-0">
+            Quellen: Yahoo Finance · EQS-News-RSS · manueller Import — persistiert, kein Live-Abruf
+          </p>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }
 
