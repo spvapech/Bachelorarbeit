@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from routes.topics import router as topics_router
 from routes.upload import router as upload_router
 from routes.companies import router as companies_router
@@ -9,6 +10,9 @@ from routes.context import router as context_router
 from routes.explanations import router as explanations_router
 
 app = FastAPI()
+
+# Compress larger JSON responses (timeline, topic-overview, ...) over the wire.
+app.add_middleware(GZipMiddleware, minimum_size=1024)
 
 app.add_middleware(
     CORSMiddleware,

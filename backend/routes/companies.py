@@ -3,9 +3,38 @@ from pydantic import BaseModel
 from database.supabase_client import get_supabase_client
 from datetime import datetime, timedelta, timezone
 from typing import Optional
+from collections import Counter
 
 router = APIRouter(prefix="/api", tags=["Companies"])
 supabase = get_supabase_client()
+
+
+def _count_reviews_by_company(table: str) -> Counter:
+    """Return {company_id: row_count} for a table in a few bulk queries.
+
+    Replaces per-company COUNT round-trips (N+1): we page through the
+    company_id column once and tally in Python, so the cost is independent
+    of the number of companies.
+    """
+    counts: Counter = Counter()
+    batch_size = 1000
+    offset = 0
+    while True:
+        resp = (
+            supabase.table(table)
+            .select("company_id")
+            .range(offset, offset + batch_size - 1)
+            .execute()
+        )
+        batch = resp.data or []
+        for r in batch:
+            cid = r.get("company_id")
+            if cid is not None:
+                counts[cid] += 1
+        if len(batch) < batch_size:
+            break
+        offset += batch_size
+    return counts
 
 class CompanyCreate(BaseModel):
     name: str
@@ -42,18 +71,14 @@ def get_companies():
     )
     data = res.data or []
 
+    # Bulk-count once instead of 2 COUNT queries per company (N+1 -> constant).
+    emp_counts = _count_reviews_by_company("employee")
+    cand_counts = _count_reviews_by_company("candidates")
+
     for row in data:
         if "id" in row and row["id"] is not None:
             cid = row["id"]
-            emp_count = (
-                supabase.table("employee").select("id", count="exact")
-                .eq("company_id", cid).limit(1).execute().count or 0
-            )
-            cand_count = (
-                supabase.table("candidates").select("id", count="exact")
-                .eq("company_id", cid).limit(1).execute().count or 0
-            )
-            row["review_count"] = emp_count + cand_count
+            row["review_count"] = emp_counts.get(cid, 0) + cand_counts.get(cid, 0)
             row["id"] = str(cid)
     return data
 

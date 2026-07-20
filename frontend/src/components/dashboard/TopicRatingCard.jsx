@@ -12,7 +12,7 @@ import {
 } from "recharts"
 import {
   Filter, ChevronDown, Maximize2, Calendar, Hash, Eye, Check,
-  AlertTriangle, ExternalLink, TrendingDown, TrendingUp, X as XIcon,
+  ExternalLink, TrendingDown, TrendingUp, X as XIcon,
   Newspaper, Megaphone, CandlestickChart, FileText,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -139,7 +139,6 @@ export const TopicRatingCard = memo(function TopicRatingCard({ companyId, onFilt
 
   // Anomalien & Erklärungen (2. Design-Zyklus)
   const [anomalyItems, setAnomalyItems] = useState([])          // [{anomaly, explanations}]
-  const [anomalyFilter, setAnomalyFilter] = useState(false)     // "Nur Anomalien"
   const [selectedAnomaly, setSelectedAnomaly] = useState(null)  // {anomaly, explanations}
   
   // Kommuniziere Loading-State nach außen
@@ -335,23 +334,8 @@ export const TopicRatingCard = memo(function TopicRatingCard({ companyId, onFilt
     return (topics || []).filter((t) => !hiddenTopics.has(t))
   }, [topics, hiddenTopics])
 
-  // Topics, für die mindestens eine Anomalie erkannt wurde
-  const topicsWithAnomalies = useMemo(() => {
-    const dims = new Set(anomalyItems.map((it) => it.anomaly.dimension))
-    return (topics || []).filter((t) => dims.has(t))
-  }, [topics, anomalyItems])
-
-  // Anomalie-Topics innerhalb der aktuellen Topic-Auswahl (5/13-Picker)
-  const anomalyTopicsInSelection = useMemo(() => {
-    const dims = new Set(topicsWithAnomalies)
-    return visibleTopics.filter((t) => dims.has(t))
-  }, [visibleTopics, topicsWithAnomalies])
-
-  // "Nur Anomalien": auf ausgewählte Topics MIT Anomalien einschränken —
-  // die Auswahl im Topic-Picker bleibt maßgeblich
-  const displayTopics = useMemo(() => {
-    return anomalyFilter ? anomalyTopicsInSelection : visibleTopics
-  }, [anomalyFilter, anomalyTopicsInSelection, visibleTopics])
+  // Angezeigte Topics = die aktuelle Auswahl im Topic-Picker (5/13)
+  const displayTopics = visibleTopics
 
   // Chart Daten: nur periodLabel setzen (kein Slider)
   const chartData = useMemo(() => {
@@ -438,27 +422,27 @@ export const TopicRatingCard = memo(function TopicRatingCard({ companyId, onFilt
   // Anomalie-Monate ("2023-01") werden auf die Chart-Perioden gemappt:
   // "ges. Zeitraum" aggregiert jährlich ("2023"), "Jahr"-Modus monatlich.
   const anomalyMarks = useMemo(() => {
-    const marks = []
-    const stacked = new Map() // (x|dimension) → Anzahl, für vertikalen Versatz
+    // Pro (Punkt|Topic) nur die stärkste Anomalie (größter Betrag) behalten,
+    // damit nie mehr Marker als ausgewählte Punkte entstehen.
+    const magOf = (it) => Math.abs(Number(it?.anomaly?.magnitude)) || 0
+    const best = new Map() // (x|dimension) → mark
     for (const item of anomalyItems) {
       const a = item.anomaly
       if (!displayTopics.includes(a.dimension)) continue
       const targetPeriod = granularity === "year" ? String(a.period) : String(a.period).slice(0, 4)
       const row = (chartData || []).find((r) => !r?._isGap && String(r?.period) === targetPeriod)
       if (!row || row[a.dimension] == null) continue
-      // Mehrere Monats-Anomalien desselben Topics landen in der Jahresansicht
-      // auf demselben Punkt — leicht versetzen, damit beide sichtbar bleiben
       const stackKey = `${row.periodLabel}|${a.dimension}`
-      const offset = stacked.get(stackKey) || 0
-      stacked.set(stackKey, offset + 1)
-      marks.push({
+      const existing = best.get(stackKey)
+      if (existing && magOf(existing.item) >= magOf(item)) continue
+      best.set(stackKey, {
         x: row.periodLabel,
-        y: Math.min(5, row[a.dimension] + offset * 0.18),
+        y: row[a.dimension],
         item,
         key: `anomaly-${a.id ?? `${a.dimension}-${a.period}`}`,
       })
     }
-    return marks
+    return Array.from(best.values())
   }, [anomalyItems, chartData, granularity, displayTopics])
 
   // Anomalien je Chart-Zeile, gruppiert nach Topic — eine Tooltip-Zeile je
@@ -592,7 +576,7 @@ export const TopicRatingCard = memo(function TopicRatingCard({ companyId, onFilt
         </div>
         {anomaliesByLabel.has(label) && (
           <div className="mt-1.5 pt-1.5 border-t border-slate-700 space-y-0.5">
-            {anomaliesByLabel.get(label).map((it) => {
+            {Array.from(anomaliesByLabel.get(label).values()).flat().map((it) => {
               const a = it.anomaly
               const isFall = a.direction === "fall"
               return (
@@ -626,32 +610,6 @@ export const TopicRatingCard = memo(function TopicRatingCard({ companyId, onFilt
           { value: "candidates", label: "Bewerber",    color: "#10b981", icon: true },
         ]}
       />
-
-      {/* Nur ausgewählte Topics mit erkannten Anomalien anzeigen */}
-      <button
-        title={anomalyTopicsInSelection.length
-          ? `Nur Anomalien: ${anomalyTopicsInSelection.length} der ausgewählten Topics mit erkannten Anomalien`
-          : topicsWithAnomalies.length
-            ? "Keine Anomalien in den ausgewählten Topics — Topic-Auswahl erweitern"
-            : "Keine Anomalien in den Einzeldimensionen erkannt"}
-        disabled={!anomalyFilter && anomalyTopicsInSelection.length === 0}
-        onClick={(e) => {
-          e.stopPropagation()
-          setAnomalyFilter((v) => !v)
-        }}
-        className={[
-          "h-7 inline-flex items-center gap-1.5 rounded-md text-[12px] font-medium transition-colors",
-          compact ? "px-2" : "px-2.5",
-          "[&_svg]:flex-none [&_svg]:w-3.5 [&_svg]:h-3.5",
-          anomalyFilter
-            ? "bg-rose-600 text-white border border-rose-600 hover:bg-rose-700"
-            : "bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 disabled:opacity-50",
-        ].join(" ")}
-      >
-        <AlertTriangle className={anomalyFilter ? "text-white" : "text-slate-500"} />
-        {!compact && <span>Nur Anomalien</span>}
-        {compact && <span className="tnum">{anomalyTopicsInSelection.length}</span>}
-      </button>
 
       <DropdownPicker
         label="Zeit"
@@ -928,8 +886,6 @@ export const TopicRatingCard = memo(function TopicRatingCard({ companyId, onFilt
     !companyId ? "Keine Firma ausgewählt"
     : error    ? `Fehler: ${error}`
     : (!chartData.length || !topics.length) ? "Keine Daten verfügbar"
-    : (anomalyFilter && displayTopics.length === 0)
-      ? "Keine Anomalien in den ausgewählten Topics — Topic-Auswahl erweitern oder Filter deaktivieren"
     : null
 
   const showOverlay = loading || refreshing
@@ -946,7 +902,7 @@ export const TopicRatingCard = memo(function TopicRatingCard({ companyId, onFilt
           icon={<Star />}
           eyebrow="TOPIC-BEWERTUNGEN"
           title="Topics im Detail"
-          subtitle={`${SOURCE_LABEL[source]} · ${displayTopics.length}/${(topics || []).length} Topics${anomalyFilter ? " · nur Anomalien" : ""}${granularity === "year" && selectedYear ? ` · ${selectedYear}` : " · ges. Zeitraum"}`}
+          subtitle={`${SOURCE_LABEL[source]} · ${displayTopics.length}/${(topics || []).length} Topics${granularity === "year" && selectedYear ? ` · ${selectedYear}` : " · ges. Zeitraum"}`}
           expandable
           actions={<FilterDropdowns compact />}
         />
