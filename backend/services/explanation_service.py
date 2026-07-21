@@ -47,20 +47,46 @@ EVENT_CATEGORIES: Dict[str, Dict[str, Any]] = {
     "finanzlage_negativ": {
         "keywords": ["gewinnwarnung", "profit warning", "umsatzrueckgang", "verlust",
                      "insolvenz", "prognose gesenkt", "senkt prognose", "abschreibung",
-                     "gewinneinbruch"],
+                     "gewinneinbruch",
+                     # Formulierungen deutscher Ad-hoc-Mitteilungen
+                     "senkt ausblick", "senkt den ausblick", "ausblick gesenkt",
+                     "senkt die prognose", "senkt jahresprognose", "prognosesenkung",
+                     "wertminderung", "wertberichtigung",
+                     "rueckstellung", "sonderbelastung", "ergebnis belastet"],
         "topics": ["Image", "Gehalt & Sozialleistungen"],
         "expected_direction": "fall",
     },
+    "prognoseanpassung": {
+        # Richtungsneutral: "passt Prognose an" lässt offen, ob angehoben oder
+        # gesenkt wird. Die Richtung liefert in diesen Fällen die Anomalie
+        # selbst, nicht das Ereignis.
+        "keywords": ["passt prognose an", "passt die prognose an", "prognose angepasst",
+                     "passt jahresprognose", "passt gesamtjahresprognose",
+                     "prognoseaenderung", "aktualisiert die prognose",
+                     "konkretisiert die prognose"],
+        "topics": ["Image", "Kommunikation"],
+        "expected_direction": None,
+    },
     "fuehrungswechsel": {
+        # "aufsichtsrat" allein ist zu unspezifisch — der Begriff steht in
+        # nahezu jeder Dividenden- und Hauptversammlungsmeldung.
         "keywords": ["ceo", "vorstandsvorsitzende", "vorstandswechsel", "geschaeftsfuehrer",
                      "fuehrungswechsel", "management change", "verlaesst das unternehmen",
-                     "neuer chef", "aufsichtsrat"],
+                     "neuer chef", "aufsichtsrat bestellt", "aufsichtsrat beruft",
+                     "aenderung im vorstand", "wechsel im vorstand",
+                     "scheidet aus dem vorstand", "folgt auf"],
         "topics": ["Vorgesetztenverhalten", "Kommunikation"],
         "expected_direction": None,
     },
     "uebernahme": {
-        "keywords": ["uebernahme", "fusion", "merger", "acquisition", "zusammenschluss",
-                     "kartellamt", "verkauf der sparte"],
+        # Der bloße Wortstamm "uebernahme" trifft auch "Übernahme des
+        # Vorstandsvorsitzes"; die Präpositionalformen grenzen den
+        # gesellschaftsrechtlichen Vorgang davon ab.
+        "keywords": ["uebernahmeangebot", "uebernahme der", "uebernahme durch",
+                     "uebernahme von", "fusion", "merger",
+                     "acquisition", "zusammenschluss", "kartellamt",
+                     "verkauf der sparte", "strategische partnerschaft",
+                     "beteiligung am", "veraeussert"],
         "topics": ["Image", "Kommunikation", "Arbeitsatmosphäre"],
         "expected_direction": None,
     },
@@ -79,7 +105,14 @@ EVENT_CATEGORIES: Dict[str, Dict[str, Any]] = {
     "wachstum_positiv": {
         "keywords": ["rekordgewinn", "umsatzplus", "expansion", "neueinstellung",
                      "auftragseingang", "gewinnzone", "rekordumsatz", "wachstum",
-                     "neuer standort", "stellt ein", "investiert"],
+                     "neuer standort", "stellt ein", "investiert",
+                     "hebt prognose", "hebt die prognose", "prognose angehoben",
+                     "hebt jahresprognose", "hebt ausblick", "prognose erhoeht",
+                     "uebertrifft die erwartungen", "ergebnis deutlich ueber",
+                     # Formulierungen der Quartals- und Jahresberichterstattung
+                     "steigert operatives ergebnis", "steigert umsatz",
+                     "operatives rekordergebnis", "rekordergebnis",
+                     "starkem ergebnis", "ergebnis waechst", "erreicht rekordgewinn"],
         "topics": ["Image", "Karriere & Weiterbildung", "Arbeitsatmosphäre"],
         "expected_direction": "rise",
     },

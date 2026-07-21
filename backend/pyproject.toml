@@ -18,7 +18,6 @@ dependencies = [
     "statsmodels>=0.14.0",
     "ruptures>=1.1.9",
     "yfinance>=0.2.50",
-    "feedparser>=6.0.0",
 ]
 
 [dependency-groups]

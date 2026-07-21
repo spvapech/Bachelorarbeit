@@ -8,7 +8,7 @@ API-Aufrufe bei jedem Dashboard-Aufruf). Aktualisierung erfolgt nur über
 explizite Refresh-Aufrufe.
 """
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Set
 
 from database.supabase_client import get_supabase_client
@@ -63,6 +63,41 @@ def resolve_and_set_ticker(company_id: int) -> Dict[str, Any]:
     set_company_ticker(company_id, hit["ticker"])
     return {"ticker": hit["ticker"], "matched_name": hit.get("name") or company["name"],
             "source": hit.get("source", "map")}
+
+
+def set_company_isin(company_id: int, isin: str) -> Dict[str, Any]:
+    supabase.table("companies").update({"isin": isin.strip() or None}).eq("id", company_id).execute()
+    company = get_company(company_id)
+    if company is None:
+        raise ValueError(f"Unternehmen {company_id} nicht gefunden")
+    return company
+
+
+def resolve_and_set_isin(company_id: int) -> Dict[str, Any]:
+    """
+    ISIN automatisch über die EQS-Meldungssuche auflösen und speichern.
+
+    Die ISIN ist der Schlüssel für den trennscharfen Abruf von
+    Ad-hoc-Mitteilungen; ohne sie bleibt diese Quelle leer.
+    """
+    company = get_company(company_id)
+    if company is None:
+        raise ValueError(f"Unternehmen {company_id} nicht gefunden")
+
+    if company.get("isin"):
+        return {"isin": company["isin"], "matched_name": company["name"], "source": "existing"}
+
+    hit = eqs_source.resolve_isin(company["name"])
+    if not hit or not hit.get("isin"):
+        raise LookupError(
+            f"Keine ISIN für '{company['name']}' gefunden — bei EQS liegen keine "
+            "Meldungen unter diesem Namen vor (vermutlich nicht börsennotiert). "
+            "Die ISIN kann manuell gesetzt werden."
+        )
+
+    set_company_isin(company_id, hit["isin"])
+    return {"isin": hit["isin"], "matched_name": hit.get("name") or company["name"],
+            "source": hit.get("source", "eqs")}
 
 
 def _existing_urls(company_id: int) -> Set[str]:
@@ -123,6 +158,12 @@ def refresh_context(company_id: int, sources: Optional[Set[str]] = None,
     fetched: Dict[str, Any] = {}
     errors: List[str] = []
 
+    # Erhebungszeitraum für die historisch abfragbaren Quellen — identisch zum
+    # Kurszeitraum, damit Ereignisse und Kursverlauf denselben Horizont abdecken.
+    today = datetime.now(timezone.utc).date()
+    window_end = today.isoformat()
+    window_start = (today - timedelta(days=365 * years)).isoformat()
+
     if "news" in requested:
         try:
             items = yfinance_source.fetch_news(ticker)
@@ -133,9 +174,23 @@ def refresh_context(company_id: int, sources: Optional[Set[str]] = None,
 
     if "adhoc" in requested:
         try:
-            items, adhoc_errors = eqs_source.fetch_adhoc(company["name"], company.get("isin"))
-            fetched["adhoc"] = _insert_context_items(company_id, items)
-            errors.extend(adhoc_errors)
+            # Ohne ISIN ist kein trennscharfer EQS-Abruf möglich; sie wird
+            # einmalig aufgelöst und am Unternehmen persistiert.
+            isin = company.get("isin")
+            if not isin:
+                try:
+                    isin = resolve_and_set_isin(company_id)["isin"]
+                except LookupError as e:
+                    isin = None
+                    errors.append(f"eqs adhoc: {e}")
+            if isin:
+                items, adhoc_errors = eqs_source.fetch_adhoc(
+                    company["name"], isin, start=window_start, end=window_end,
+                )
+                fetched["adhoc"] = _insert_context_items(company_id, items)
+                errors.extend(adhoc_errors)
+            else:
+                fetched["adhoc"] = 0
         except Exception as e:
             fetched["adhoc"] = 0
             errors.append(f"eqs adhoc: {e}")
